@@ -107,11 +107,14 @@ exports.getDetailCommon = async (contentId) => {
       _type: 'json',
     };
 
+    console.log('[Tour API] Requesting detailCommon with params:', params);
+
     const response = await axios.get(
       `${TOUR_API_BASE_URL}/detailCommon2`,
       { params }
     );
 
+    console.log('[Tour API] detailCommon response:', JSON.stringify(response.data).substring(0, 500));
     return response.data;
   } catch (error) {
     console.error('Tour API Error:', error.message);

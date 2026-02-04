@@ -146,8 +146,13 @@ exports.getRecommendation = async (req, res, next) => {
       const detailCommon = await tourApiService.getDetailCommon(id);
       const detailImage = await tourApiService.getDetailImage(id);
 
-      const commonInfo = detailCommon.response?.body?.items?.item;
-      const images = detailImage.response?.body?.items?.item || [];
+      let commonInfo = detailCommon.response?.body?.items?.item;
+      let images = detailImage.response?.body?.items?.item || [];
+
+      // item이 배열인 경우 첫 번째 원소를 가져옴
+      if (Array.isArray(commonInfo)) {
+        commonInfo = commonInfo[0];
+      }
 
       if (!commonInfo) {
         return res.status(404).json({ message: '관광정보를 찾을 수 없습니다.' });
