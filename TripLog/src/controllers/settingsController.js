@@ -1,16 +1,17 @@
+const { Settings } = require('../models');
+
 // 설정 조회
 exports.getSettings = async (req, res, next) => {
   try {
-    // TODO: 사용자 설정 모델 및 조회 로직 구현
+    const userId = req.user.userId;
 
-    res.json({
-      notifications: {
-        push: true,
-        email: false,
-      },
-      theme: 'light',
-      language: 'ko',
-    });
+    let settings = await Settings.findOne({ user: userId });
+
+    if (!settings) {
+      settings = await Settings.create({ user: userId });
+    }
+
+    res.json(settings);
   } catch (error) {
     next(error);
   }
@@ -19,15 +20,16 @@ exports.getSettings = async (req, res, next) => {
 // 설정 수정
 exports.updateSettings = async (req, res, next) => {
   try {
+    const userId = req.user.userId;
     const { notifications, theme, language } = req.body;
 
-    // TODO: 사용자 설정 저장 로직 구현
+    const settings = await Settings.findOneAndUpdate(
+      { user: userId },
+      { notifications, theme, language },
+      { new: true, upsert: true, runValidators: true }
+    );
 
-    res.json({
-      notifications,
-      theme,
-      language,
-    });
+    res.json(settings);
   } catch (error) {
     next(error);
   }

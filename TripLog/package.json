@@ -4,10 +4,12 @@
   "description": "A simple Node.js Express Hello World app",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "seed:recommendations": "node src/seeds/recommendations.js"
   },
   "dependencies": {
     "apple-signin-auth": "^2.0.0",
+    "axios": "^1.13.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
