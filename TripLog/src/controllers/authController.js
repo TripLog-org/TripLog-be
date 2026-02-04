@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+const appleSignin = require('apple-signin-auth');
 const { User } = require('../models');
 const config = require('../config');
 
@@ -13,26 +15,82 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
+const googleClient = new OAuth2Client(config.google.clientId);
+
+const upsertSocialUser = async ({ provider, providerId, email, name, profileImage }) => {
+  let user = await User.findOne({ provider, providerId });
+  let isNewUser = false;
+
+  if (!user) {
+    if (!email) {
+      const error = new Error('이메일 정보가 필요합니다.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    user = await User.create({
+      provider,
+      providerId,
+      email,
+      name,
+      profileImage,
+    });
+    isNewUser = true;
+  } else {
+    const updates = {};
+    if (email && !user.email) updates.email = email;
+    if (name && !user.name) updates.name = name;
+    if (profileImage && !user.profileImage) updates.profileImage = profileImage;
+    if (Object.keys(updates).length > 0) {
+      Object.assign(user, updates);
+      await user.save();
+    }
+  }
+
+  const tokens = generateTokens(user._id);
+  user.refreshToken = tokens.refreshToken;
+  await user.save();
+
+  const userResponse = user.toObject();
+  delete userResponse.refreshToken;
+
+  return { tokens, user: userResponse, isNewUser };
+};
+
 // 애플 로그인
 exports.appleLogin = async (req, res, next) => {
   try {
     const { idToken, authorizationCode } = req.body;
 
-    // TODO: 애플 ID 토큰 검증 로직 구현
-    // const appleUser = await verifyAppleToken(idToken);
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken이 필요합니다.' });
+    }
 
-    // 임시 mock 응답
+    if (!config.apple.clientId) {
+      return res.status(500).json({ message: 'Apple Client ID가 설정되지 않았습니다.' });
+    }
+
+    const appleUser = await appleSignin.verifyIdToken(idToken, {
+      audience: config.apple.clientId,
+      ignoreExpiration: false,
+    });
+
+    const email = appleUser.email || req.body.email;
+    const providerId = appleUser.sub;
+    const name = req.body.name;
+
+    const { tokens, user, isNewUser } = await upsertSocialUser({
+      provider: 'apple',
+      providerId,
+      email,
+      name,
+    });
+
     res.json({
-      message: '애플 로그인 API (구현 예정)',
-      accessToken: 'mock_access_token',
-      refreshToken: 'mock_refresh_token',
-      user: {
-        id: 'user_123',
-        email: 'user@example.com',
-        name: '사용자',
-        provider: 'apple',
-      },
-      isNewUser: false,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user,
+      isNewUser,
     });
   } catch (error) {
     next(error);
@@ -44,21 +102,39 @@ exports.googleLogin = async (req, res, next) => {
   try {
     const { idToken } = req.body;
 
-    // TODO: 구글 ID 토큰 검증 로직 구현
-    // const googleUser = await verifyGoogleToken(idToken);
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken이 필요합니다.' });
+    }
 
-    // 임시 mock 응답
+    if (!config.google.clientId) {
+      return res.status(500).json({ message: 'Google Client ID가 설정되지 않았습니다.' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: config.google.clientId,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload) {
+      return res.status(401).json({ message: '유효하지 않은 구글 토큰입니다.' });
+    }
+
+    const { sub: providerId, email, name, picture } = payload;
+
+    const { tokens, user, isNewUser } = await upsertSocialUser({
+      provider: 'google',
+      providerId,
+      email,
+      name,
+      profileImage: picture,
+    });
+
     res.json({
-      message: '구글 로그인 API (구현 예정)',
-      accessToken: 'mock_access_token',
-      refreshToken: 'mock_refresh_token',
-      user: {
-        id: 'user_123',
-        email: 'user@example.com',
-        name: '사용자',
-        provider: 'google',
-      },
-      isNewUser: false,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user,
+      isNewUser,
     });
   } catch (error) {
     next(error);
