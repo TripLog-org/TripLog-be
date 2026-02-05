@@ -28,6 +28,12 @@ const userSchema = new mongoose.Schema(
     refreshToken: {
       type: String,
     },
+    bookmarks: [
+      {
+        type: String,
+        description: 'Bookmark ID (can be MongoDB ObjectId from DB or string from public API)',
+      },
+    ],
   },
   {
     timestamps: true,

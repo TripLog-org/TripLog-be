@@ -125,6 +125,7 @@ const options = {
       { name: 'Places', description: '장소 API' },
       { name: 'Photos', description: '사진 API' },
       { name: 'Recommendations', description: '추천 여행 API' },
+      { name: 'Bookmarks', description: '북마크 API' },
       { name: 'Settings', description: '설정 API' },
     ],
   },
