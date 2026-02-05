@@ -4,6 +4,8 @@ const Place = require('./Place');
 const Photo = require('./Photo');
 const Recommendation = require('./Recommendation');
 const Settings = require('./Settings');
+const Post = require('./Post');
+const Comment = require('./Comment');
 
 module.exports = {
   User,
@@ -12,4 +14,6 @@ module.exports = {
   Photo,
   Recommendation,
   Settings,
+  Post,
+  Comment,
 };

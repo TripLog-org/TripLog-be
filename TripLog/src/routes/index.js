@@ -9,6 +9,8 @@ const photoRoutes = require('./photos');
 const recommendationRoutes = require('./recommendations');
 const settingsRoutes = require('./settings');
 const bookmarkRoutes = require('./bookmarks');
+const postRoutes = require('./posts');
+const commentRoutes = require('./comments');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -18,5 +20,7 @@ router.use('/photos', photoRoutes);
 router.use('/recommendations', recommendationRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/bookmarks', bookmarkRoutes);
+router.use('/posts', postRoutes);
+router.use('/comments', commentRoutes);
 
 module.exports = router;
