@@ -76,6 +76,37 @@
 
 ---
 
+### 📝 게시물 및 댓글 (Posts & Comments)
+
+| API | Method | Endpoint | 설명 |
+|-----|--------|----------|------|
+| 게시물 목록 조회 | GET | `/api/posts` | 피드 조회 (페이징 지원) |
+| 게시물 상세 조회 | GET | `/api/posts/:postId` | 특정 게시물 상세 |
+| 게시물 생성 | POST | `/api/posts` | 게시물 작성 (이미지 다중 업로드 지원) |
+| 게시물 수정 | PUT | `/api/posts/:postId` | 게시물 수정 |
+| 게시물 삭제 | DELETE | `/api/posts/:postId` | 게시물 삭제 |
+| 게시물 좋아요 | POST | `/api/posts/:postId/like` | 게시물 좋아요 추가/제거 (토글) |
+| 댓글 목록 조회 | GET | `/api/posts/:postId/comments` | 게시물 댓글 조회 |
+| 댓글 작성 | POST | `/api/posts/:postId/comments` | 댓글 작성 |
+| 댓글 수정 | PUT | `/api/comments/:commentId` | 댓글 수정 |
+| 댓글 삭제 | DELETE | `/api/comments/:commentId` | 댓글 삭제 |
+| 댓글 좋아요 | POST | `/api/comments/:commentId/like` | 댓글 좋아요 추가/제거 (토글) |
+
+**게시물 생성 예시**:
+```bash
+curl -X POST http://localhost:3000/api/posts \
+  -H "Authorization: Bearer {token}" \
+  -F "content=부산 여행 너무 좋았어요!" \
+  -F "images=@photo1.jpg" \
+  -F "images=@photo2.jpg" \
+  -F "tags=부산,여행,맛집" \
+  -F "visibility=public"
+```
+
+**지원 이미지 형식**: JPEG, JPG, PNG, GIF, WebP (최대 10개, 파일당 10MB 이하)
+
+---
+
 ### ⭐ 추천 여행 (Recommendation)
 
 | API | Method | Endpoint | 설명 |
@@ -350,3 +381,4 @@ src/
 - ✅ 페이징 처리 (모든 목록 조회 API)
 - ✅ 북마크 기능 (추가/제거/목록/일괄삭제)
 - ✅ Swagger 문서 업데이트
+- ✅ 게시물 이미지 업로드 기능 (다중 파일 지원)

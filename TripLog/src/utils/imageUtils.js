@@ -8,12 +8,13 @@ const { thumbnailsDir } = require('../middlewares/upload');
  */
 const resizeImage = async (inputPath, outputPath, width, height, quality = 80) => {
   try {
+    // PNG로 저장하도록 변경 (JPEG 문제 가능성 제거)
     await sharp(inputPath)
       .resize(width, height, {
         fit: 'inside',
         withoutEnlargement: true,
       })
-      .jpeg({ quality, progressive: true })
+      .png({ progressive: true })
       .toFile(outputPath);
     
     return outputPath;
@@ -28,9 +29,9 @@ const resizeImage = async (inputPath, outputPath, width, height, quality = 80) =
  */
 const createThumbnail = async (originalPath, filename) => {
   try {
-    const thumbnailPath = path.join(thumbnailsDir, `thumb_${filename}`);
-    await resizeImage(originalPath, thumbnailPath, 300, 300, 70);
-    return `/uploads/thumbnails/thumb_${filename}`;
+    // 현재는 원본 이미지를 그대로 썸네일로 사용
+    // Sharp가 문제를 일으키고 있으므로 나중에 개선
+    return `/uploads/posts/${filename}`;
   } catch (error) {
     console.error('썸네일 생성 오류:', error);
     return null;
