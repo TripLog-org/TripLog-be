@@ -84,6 +84,17 @@
 | 추천 여행 상세 | GET | `/api/recommendations/:id` | 추천 여행 상세 조회 |
 | 관광정보 검색 | GET | `/api/recommendations/search` | 한국관광공사 공공 API 키워드 검색 |
 
+---
+
+### 🔖 북마크 (Bookmark)
+
+| API | Method | Endpoint | 설명 |
+|-----|--------|----------|------|
+| 북마크 토글 | POST | `/api/bookmarks/toggle` | 북마크 추가/제거 (토글) |
+| 북마크 목록 조회 | GET | `/api/bookmarks` | 내 북마크 목록 (페이징 지원) |
+| 북마크 상태 확인 | GET | `/api/bookmarks/check/:id` | 특정 여행지 북마크 여부 확인 |
+| 모든 북마크 삭제 | DELETE | `/api/bookmarks` | 북마크 일괄 삭제 |
+
 **쿼리 파라미터**:
 - `category`: 카테고리 필터 (관광지, 문화시설, 축제공연행사, 여행코스, 레포츠, 숙박, 쇼핑, 산, 바다, 도시)
 - `region`: 지역 (공공 API 사용 시)
@@ -101,6 +112,60 @@ GET /api/recommendations?category=산&page=2&pageSize=20
 
 # 키워드 검색 (페이징 지원)
 GET /api/recommendations/search?keyword=서울&page=1&pageSize=20
+```
+
+---
+
+### 🔖 북마크 (Bookmark)
+
+| API | Method | Endpoint | 설명 |
+|-----|--------|----------|------|
+| 북마크 토글 | POST | `/api/bookmarks/toggle` | 북마크 추가/제거 (토글) |
+| 북마크 목록 조회 | GET | `/api/bookmarks` | 내 북마크 목록 (페이징 지원) |
+| 북마크 상태 확인 | GET | `/api/bookmarks/check/:id` | 특정 여행지 북마크 여부 확인 |
+| 모든 북마크 삭제 | DELETE | `/api/bookmarks` | 북마크 일괄 삭제 |
+
+**쿼리 파라미터** (목록 조회):
+- `page`: 페이지 번호 (기본값: 1)
+- `pageSize`: 한 페이지 항목 수 (기본값: 20, 최대: 100)
+- `sortBy`: 정렬 기준 (-createdAt, createdAt, title, -title)
+
+**예시**:
+```bash
+# 북마크 추가/제거
+POST /api/bookmarks/toggle
+Headers: Authorization: Bearer {token}
+Body: {"recommendationId": "2850913"}
+
+# 북마크 목록 조회 (페이징)
+GET /api/bookmarks?page=1&pageSize=10
+Headers: Authorization: Bearer {token}
+
+# 북마크 상태 확인
+GET /api/bookmarks/check/2850913
+Headers: Authorization: Bearer {token}
+```
+
+**응답 예시**:
+```json
+// 북마크 토글 - 추가 시
+{
+  "message": "북마크가 추가되었습니다",
+  "isBookmarked": true,
+  "bookmarkCount": 5
+}
+
+// 북마크 목록 조회
+{
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 5,
+    "totalPages": 1
+  },
+  "count": 5,
+  "data": ["2850913", "2850914", "69833ce1819d809ddb3a869b"]
+}
 ```
 
 ---
@@ -277,10 +342,11 @@ src/
 
 ---
 
-**총 API 개수: 26개** (검색 및 페이징 포함)
+**총 API 개수: 30개** (북마크 4개 포함)
 
-**마지막 업데이트**: 2026.02.04
+**마지막 업데이트**: 2026.02.05
 - ✅ 한국관광공사 공공 API 통합
 - ✅ 카테고리 필터링 (DB & 공공 API)
 - ✅ 페이징 처리 (모든 목록 조회 API)
+- ✅ 북마크 기능 (추가/제거/목록/일괄삭제)
 - ✅ Swagger 문서 업데이트
