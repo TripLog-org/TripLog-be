@@ -82,7 +82,7 @@
 |-----|--------|----------|------|
 | 게시물 목록 조회 | GET | `/api/posts` | 피드 조회 (페이징 지원) |
 | 게시물 상세 조회 | GET | `/api/posts/:postId` | 특정 게시물 상세 |
-| 게시물 생성 | POST | `/api/posts` | 게시물 작성 (이미지 다중 업로드 지원) |
+| 게시물 생성 | POST | `/api/posts` | 게시물 작성 (이미지 다중 업로드 & 메타데이터 지원) |
 | 게시물 수정 | PUT | `/api/posts/:postId` | 게시물 수정 |
 | 게시물 삭제 | DELETE | `/api/posts/:postId` | 게시물 삭제 |
 | 게시물 좋아요 | POST | `/api/posts/:postId/like` | 게시물 좋아요 추가/제거 (토글) |
@@ -94,6 +94,7 @@
 
 **게시물 생성 예시**:
 ```bash
+# 기본 예시
 curl -X POST http://localhost:3000/api/posts \
   -H "Authorization: Bearer {token}" \
   -F "content=부산 여행 너무 좋았어요!" \
@@ -101,6 +102,28 @@ curl -X POST http://localhost:3000/api/posts \
   -F "images=@photo2.jpg" \
   -F "tags=부산,여행,맛집" \
   -F "visibility=public"
+
+# 이미지 메타데이터 포함 (각 사진의 위치, 촬영 시간 등)
+curl -X POST http://localhost:3000/api/posts \
+  -H "Authorization: Bearer {token}" \
+  -F "content=부산 여행" \
+  -F "images=@photo1.jpg" \
+  -F "images=@photo2.jpg" \
+  -F "imageMeta=[{\"latitude\":37.27652,\"longitude\":127.00852,\"locationName\":\"부산 해운대\",\"capturedAt\":\"2026-02-05T12:00:00Z\"},{\"latitude\":37.27700,\"longitude\":127.00900,\"locationName\":\"부산 광안리\"}]" \
+  -F "tags=부산,여행,맛집"
+```
+
+**이미지 메타데이터 구조**:
+각 이미지는 다음 메타데이터를 포함할 수 있습니다:
+```json
+{
+  "latitude": 37.27652,              // 위도 (필수)
+  "longitude": 127.00852,            // 경도 (필수)
+  "locationName": "부산 해운대",      // 위치 이름 (선택)
+  "address": "부산 수영구 해운대로...",  // 주소 (선택)
+  "capturedAt": "2026-02-05T12:00:00Z",  // 촬영 시간 (선택)
+  "description": "해운대 비치"         // 이미지 설명 (선택)
+}
 ```
 
 **지원 이미지 형식**: JPEG, JPG, PNG, GIF, WebP (최대 10개, 파일당 10MB 이하)

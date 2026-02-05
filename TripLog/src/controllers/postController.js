@@ -13,6 +13,20 @@ exports.createPost = async (req, res) => {
     // 이미지 처리
     const images = [];
     if (req.files && req.files.length > 0) {
+      // req.body에서 이미지 메타데이터 파싱
+      // imageMeta는 JSON 배열 문자열: [{"latitude": 37.123, "longitude": 127.456, ...}, ...]
+      let imageMetadata = [];
+      if (req.body.imageMeta) {
+        try {
+          imageMetadata = typeof req.body.imageMeta === 'string' 
+            ? JSON.parse(req.body.imageMeta) 
+            : req.body.imageMeta;
+        } catch (e) {
+          console.error('이미지 메타데이터 파싱 오류:', e);
+          imageMetadata = [];
+        }
+      }
+
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i];
         const imageUrl = `/uploads/posts/${file.filename}`;
@@ -20,11 +34,44 @@ exports.createPost = async (req, res) => {
         // 썸네일 생성
         const thumbnailUrl = await createThumbnail(file.path, file.filename);
 
-        images.push({
+        // 해당 이미지의 메타데이터 가져오기
+        const meta = imageMetadata[i] || {};
+
+        const imageObject = {
           url: imageUrl,
           thumbnail: thumbnailUrl || imageUrl,
           order: i,
-        });
+        };
+
+        // 이미지별 위치 정보 추가
+        if (meta.latitude && meta.longitude) {
+          imageObject.location = {
+            coordinates: {
+              latitude: parseFloat(meta.latitude),
+              longitude: parseFloat(meta.longitude),
+            },
+          };
+          
+          // 위치 이름과 주소가 있으면 추가
+          if (meta.locationName) {
+            imageObject.location.name = meta.locationName;
+          }
+          if (meta.address) {
+            imageObject.location.address = meta.address;
+          }
+        }
+
+        // 촬영 시간 추가
+        if (meta.capturedAt) {
+          imageObject.capturedAt = new Date(meta.capturedAt);
+        }
+
+        // 이미지 설명 추가
+        if (meta.description) {
+          imageObject.description = meta.description;
+        }
+
+        images.push(imageObject);
       }
     }
 

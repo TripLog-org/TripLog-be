@@ -37,13 +37,17 @@ const { upload } = require('../middlewares/upload');
  *                   type: string
  *                   format: binary
  *                 description: 이미지 파일들 (최대 10개, 각 10MB 이하)
+ *               imageMeta:
+ *                 type: string
+ *                 description: 각 이미지의 메타데이터 (JSON 배열 문자열)
+ *                 example: '[{"latitude":37.27652,"longitude":127.00852,"locationName":"부산 해운대","capturedAt":"2026-02-05T12:00:00Z"},{"latitude":37.27700,"longitude":127.00900}]'
  *               tags:
  *                 type: string
  *                 description: 태그 (쉼표로 구분 또는 JSON 배열)
  *                 example: 부산,여행,맛집
  *               location:
  *                 type: string
- *                 description: 위치 정보 (JSON 형식)
+ *                 description: 게시물 위치 정보 (JSON 형식, 선택)
  *               visibility:
  *                 type: string
  *                 enum: [public, friends, private]

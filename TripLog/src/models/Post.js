@@ -26,6 +26,22 @@ const postSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
+        // 이미지별 위치 정보 (게시물 작성 시 각 사진의 메타데이터)
+        location: {
+          name: String,           // 위치 이름 (예: "부산 해운대")
+          coordinates: {
+            latitude: Number,     // 위도
+            longitude: Number,    // 경도
+          },
+          address: String,        // 주소
+        },
+        // 이미지별 촬영 시간
+        capturedAt: {
+          type: Date,
+          description: '사진 촬영 시간',
+        },
+        // 이미지 설명 (옵션)
+        description: String,
       },
     ],
     location: {
