@@ -220,7 +220,10 @@ exports.googleCallback = async (req, res, next) => {
     }
 
     // Authorization Code를 ID Token으로 교환
-    const { tokens } = await googleClient.getToken(code);
+    const { tokens } = await googleClient.getToken({
+      code,
+      redirect_uri: config.google.redirectUri
+    });
     const idToken = tokens.id_token;
 
     if (!idToken) {
