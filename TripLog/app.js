@@ -36,6 +36,15 @@ app.use(express.urlencoded({ extended: true }));
 // 정적 파일 제공 (업로드된 이미지)
 app.use('/uploads', express.static('uploads'));
 
+// 테스트 파일 제공
+app.get('/test-google-login', (req, res) => {
+  res.sendFile(__dirname + '/test_google_login.html');
+});
+
+app.get('/test-apple-login', (req, res) => {
+  res.sendFile(__dirname + '/test_apple_login.html');
+});
+
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,

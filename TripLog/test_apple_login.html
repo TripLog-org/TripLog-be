@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple 로그인 테스트</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #000 0%, #333 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+      font-size: 24px;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .section:last-child {
+      border-bottom: none;
+    }
+    .section h2 {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+    button {
+      background: #000;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #333;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .result-box {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      word-break: break-all;
+      border: 1px solid #ddd;
+    }
+    .result-box.empty {
+      color: #999;
+      text-align: center;
+      padding: 40px 15px;
+    }
+    .copy-btn {
+      background: #28a745;
+      padding: 8px 16px;
+      font-size: 12px;
+      width: auto;
+      margin-top: 10px;
+    }
+    .copy-btn:hover {
+      background: #218838;
+    }
+    .info-box {
+      background: #e7f3ff;
+      border: 1px solid #b3d9ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #004085;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍎 Apple 로그인 테스트</h1>
+    
+    <div class="info-box">
+      <strong>⚠️ 설정 필요:</strong><br>
+      Apple Developer Account에서 다음을 .env에 설정해야 합니다:<br>
+      • APPLE_CLIENT_ID<br>
+      • APPLE_TEAM_ID<br>
+      • APPLE_KEY_ID
+    </div>
+
+    <!-- Apple 로그인 설정 -->
+    <div class="section">
+      <h2>Step 1: Apple 자격증명 설정</h2>
+      <div class="result-box" style="background: #fff3cd; color: #856404; border-color: #ffeeba;">
+        <strong>절차:</strong><br><br>
+        1. developer.apple.com 접속<br>
+        2. Certificates, IDs & Profiles<br>
+        3. Service IDs 생성<br>
+        4. Sign in with Apple 설정<br>
+        5. Return URLs: http://localhost:3000<br>
+        6. Key 생성 (.p8 파일)<br>
+        7. .env에 설정:<br>
+        &nbsp;&nbsp;APPLE_CLIENT_ID=com.example.triplog.service<br>
+        &nbsp;&nbsp;APPLE_TEAM_ID=[Team ID]<br>
+        &nbsp;&nbsp;APPLE_KEY_ID=[Key ID]<br><br>
+        8. 이 페이지 새로고침
+      </div>
+    </div>
+
+    <!-- Apple 로그인 버튼 -->
+    <div class="section">
+      <h2>Step 2: Apple 로그인</h2>
+      <div id="debugInfo" class="status info" style="display: none;"></div>
+      <button onclick="appleLogin()" id="appleLoginBtn">Apple로 로그인</button>
+    </div>
+
+    <!-- ID Token 표시 -->
+    <div class="section">
+      <h2>Step 3: ID Token 획득</h2>
+      <div id="tokenStatus" class="status info" style="display: none;"></div>
+      <div id="idTokenBox" class="result-box empty">로그인 후 ID Token이 표시됩니다</div>
+      <button class="copy-btn" onclick="copyToClipboard('idTokenBox')" style="display: none;" id="copyIdTokenBtn">복사</button>
+    </div>
+
+    <!-- 백엔드 전송 -->
+    <div class="section">
+      <h2>Step 4: 백엔드로 전송</h2>
+      <button onclick="sendToBackend()" id="sendBtn" style="display: none;">백엔드로 전송 (로그인)</button>
+      <div id="sendStatus" class="status" style="display: none;"></div>
+    </div>
+
+    <!-- 응답 결과 -->
+    <div class="section">
+      <h2>Step 5: 응답 결과</h2>
+      <div id="responseBox" class="result-box empty">백엔드 응답이 표시됩니다</div>
+      <button class="copy-btn" onclick="copyToClipboard('responseBox')" style="display: none;" id="copyResponseBtn">복사</button>
+    </div>
+  </div>
+
+  <script>
+    let currentIdToken = null;
+
+    // Apple SDK 로드
+    function appleLogin() {
+      console.log('Apple 로그인 클릭');
+      
+      // Apple Sign-in 팝업 열기
+      if (typeof AppleID !== 'undefined') {
+        AppleID.auth.init({
+          clientId: 'com.example.triplog.service', // Service ID
+          teamId: 'YOUR_TEAM_ID',
+          redirectURI: 'http://localhost:3000',
+          usePopup: true,
+        });
+        AppleID.auth.signIn();
+      } else {
+        alert('Apple SDK가 로드되지 않았습니다.\n\nApple Developer 설정 후 진행하세요.');
+      }
+    }
+
+    // Apple 로그인 콜백
+    function handleAppleAuth(response) {
+      if (response.authorization) {
+        currentIdToken = response.authorization.id_token;
+        
+        const tokenBox = document.getElementById('idTokenBox');
+        tokenBox.textContent = currentIdToken;
+        tokenBox.classList.remove('empty');
+        
+        const tokenStatus = document.getElementById('tokenStatus');
+        tokenStatus.textContent = '✓ ID Token 획득 성공!';
+        tokenStatus.classList.add('success');
+        tokenStatus.classList.remove('info');
+        tokenStatus.style.display = 'block';
+        
+        document.getElementById('copyIdTokenBtn').style.display = 'inline-block';
+        document.getElementById('sendBtn').style.display = 'block';
+        
+        console.log('Apple ID Token:', currentIdToken);
+      }
+    }
+
+    async function sendToBackend() {
+      if (!currentIdToken) {
+        alert('먼저 Apple 로그인을 진행하세요');
+        return;
+      }
+
+      const sendStatus = document.getElementById('sendStatus');
+      const responseBox = document.getElementById('responseBox');
+      
+      try {
+        sendStatus.textContent = '전송 중...';
+        sendStatus.classList.add('info');
+        sendStatus.style.display = 'block';
+
+        const response = await fetch('http://localhost:3000/api/auth/apple', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idToken: currentIdToken
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          sendStatus.textContent = '✓ 백엔드 전송 성공!';
+          sendStatus.classList.add('success');
+          sendStatus.classList.remove('info');
+          
+          responseBox.textContent = JSON.stringify(data, null, 2);
+          responseBox.classList.remove('empty');
+          document.getElementById('copyResponseBtn').style.display = 'inline-block';
+          
+          localStorage.setItem('accessToken', data.accessToken);
+          localStorage.setItem('refreshToken', data.refreshToken);
+        } else {
+          sendStatus.textContent = '❌ 전송 실패: ' + (data.message || '알 수 없는 오류');
+          sendStatus.classList.add('error');
+          sendStatus.classList.remove('info');
+        }
+      } catch (error) {
+        sendStatus.textContent = '❌ 전송 실패: ' + error.message;
+        sendStatus.classList.add('error');
+        sendStatus.classList.remove('info');
+        console.error('Error:', error);
+      }
+    }
+
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      const text = element.textContent;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert('복사되었습니다!');
+      });
+    }
+  </script>
+
+  <!-- Apple Sign-in SDK -->
+  <script type="text/javascript" src="https://appleid.cdn-apple.com/appleauth/static/jsappleauth/appleid.auth.js"></script>
+  <script>
+    // Apple SDK 로드 후 초기화
+    if (typeof AppleID !== 'undefined') {
+      AppleID.auth.onCredentialAvailable = handleAppleAuth;
+    }
+  </script>
+</body>
+</html>

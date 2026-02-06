@@ -302,6 +302,30 @@ TOUR_API_KEY=your_api_key_here
 
 ## 인증 방식
 
+### 구글 SNS 로그인 설정
+
+**환경변수**:
+```
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=your_google_redirect_uri
+```
+
+**참고**: 여러 플랫폼(웹/Android/iOS) 클라이언트 ID를 사용할 경우 `GOOGLE_CLIENT_ID`에 콤마(,)로 구분해 입력할 수 있습니다.
+
+**요청 예시**:
+```json
+// POST /api/auth/google (idToken 방식)
+{
+  "idToken": "구글에서 받은 ID 토큰"
+}
+
+// POST /api/auth/google (authorizationCode 방식)
+{
+  "authorizationCode": "구글 OAuth 인가 코드"
+}
+```
+
 ### 요청 예시
 
 ```json

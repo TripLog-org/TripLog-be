@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google 로그인 테스트</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+      font-size: 24px;
+    }
+    #g_id_onload {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .section:last-child {
+      border-bottom: none;
+    }
+    .section h2 {
+      font-size: 16px;
+      color: #667eea;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    .result-box {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .result-box.empty {
+      color: #999;
+      text-align: center;
+      padding: 30px 15px;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .copy-btn {
+      background: #28a745;
+      padding: 8px 16px;
+      font-size: 12px;
+      width: auto;
+      margin-top: 10px;
+    }
+    .copy-btn:hover {
+      background: #218838;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Google 로그인 테스트</h1>
+    
+    <!-- Google Sign-In 버튼 -->
+    <div class="section">
+      <h2>Step 1: Google 로그인</h2>
+      <div id="debugInfo" class="status info" style="display: none; background: #e3f2fd; color: #01579b; border: 1px solid #90caf9;"></div>
+      <!-- ID Token 방식 (더 안정적) -->
+      <div id="g_id_onload"
+        data-client_id="377422593418-l8b7p9roc2p1vdpraphcd816aamavgip.apps.googleusercontent.com"
+        data-callback="handleCredentialResponse">
+      </div>
+      <div id="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
+      <p style="margin-top: 15px; font-size: 12px; color: #666;">또는</p>
+      <!-- 직접 로그인 (OAuth Code 방식) -->
+      <button onclick="directGoogleLogin()" style="background: #4285F4; width: 100%; margin-top: 10px;">Google 계정으로 직접 로그인</button>
+    </div>
+
+    <!-- ID Token 표시 -->
+    <div class="section">
+      <h2>Step 2: ID Token 획득</h2>
+      <div id="tokenStatus" class="status info" style="display: none;"></div>
+      <div id="idTokenBox" class="result-box empty">로그인 후 ID Token이 표시됩니다</div>
+      <button class="copy-btn" onclick="copyToClipboard('idTokenBox')" style="display: none;" id="copyIdTokenBtn">복사</button>
+    </div>
+
+    <!-- 백엔드 전송 -->
+    <div class="section">
+      <h2>Step 3: 백엔드로 전송</h2>
+      <button onclick="sendToBackend()" id="sendBtn" style="display: none;">백엔드로 전송 (로그인)</button>
+      <div id="sendStatus" class="status" style="display: none;"></div>
+    </div>
+
+    <!-- 응답 결과 -->
+    <div class="section">
+      <h2>Step 4: 응답 결과</h2>
+      <div id="responseBox" class="result-box empty">백엔드 응답이 표시됩니다</div>
+      <button class="copy-btn" onclick="copyToClipboard('responseBox')" style="display: none;" id="copyResponseBtn">복사</button>
+    </div>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    let currentIdToken = null;
+    const clientId = '377422593418-l8b7p9roc2p1vdpraphcd816aamavgip.apps.googleusercontent.com';
+
+    // 즉시 디버그 정보 표시
+    console.log('=== TripLog Google Login Debug ===');
+    console.log('Client ID:', clientId);
+    console.log('Current URL:', window.location.href);
+    console.log('Current Host:', window.location.hostname);
+    console.log('Current Port:', window.location.port);
+
+    // URL 파라미터에서 토큰 확인 (Google 콜백에서)
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessTokenFromUrl = urlParams.get('accessToken');
+    const refreshTokenFromUrl = urlParams.get('refreshToken');
+    const emailFromUrl = urlParams.get('email');
+    const isNewUserFromUrl = urlParams.get('isNewUser');
+    const errorFromUrl = urlParams.get('error');
+
+    if (accessTokenFromUrl) {
+      // Google Callback 결과 처리
+      console.log('✓ Google Callback 응답 감지됨');
+      displayCallbackResult({
+        accessToken: accessTokenFromUrl,
+        refreshToken: refreshTokenFromUrl,
+        email: emailFromUrl,
+        isNewUser: isNewUserFromUrl === 'true'
+      });
+    }
+
+    if (errorFromUrl) {
+      const sendStatus = document.getElementById('sendStatus');
+      sendStatus.textContent = '❌ 로그인 실패: ' + errorFromUrl;
+      sendStatus.classList.add('error');
+      sendStatus.style.display = 'block';
+    }
+
+    // Google SDK 로드 확인 (더 긴 시간 대기)
+    window.addEventListener('load', function() {
+      const debugInfo = document.getElementById('debugInfo');
+      
+      setTimeout(function() {
+        if (!window.google) {
+          console.error('❌ Google SDK 로드 실패');
+          debugInfo.innerHTML = `
+            <strong>❌ Google SDK 로드 실패</strong><br>
+            현재 URL: ${window.location.href}<br>
+            <br>
+            💡 해결방법:<br>
+            1. Google Cloud Console에서 JavaScript Origins 확인<br>
+            2. 정확히 <code>http://localhost:3000</code> 입력됨?<br>
+            3. 프로토콜 확인 (http or https)<br>
+            4. 포트 확인 (3000)<br>
+            5. 저장 후 1-2분 대기<br>
+            6. 시크릿 창(Cmd+Shift+N)에서 재시도<br>
+            7. 브라우저 캐시 완전 삭제<br>
+          `;
+          debugInfo.style.display = 'block';
+        } else {
+          console.log('✓ Google SDK 로드 성공');
+          console.log('google.accounts:', window.google.accounts);
+          debugInfo.innerHTML = `
+            <strong>✓ Google SDK 로드 성공</strong><br>
+            google.accounts 객체 확인됨
+          `;
+          debugInfo.style.display = 'block';
+        }
+      }, 3000);
+    });
+
+    function handleCredentialResponse(response) {
+      currentIdToken = response.credential;
+      
+      // ID Token 표시
+      const tokenBox = document.getElementById('idTokenBox');
+      tokenBox.textContent = currentIdToken;
+      tokenBox.classList.remove('empty');
+      
+      // 상태 업데이트
+      const tokenStatus = document.getElementById('tokenStatus');
+      tokenStatus.textContent = '✓ ID Token 획득 성공!';
+      tokenStatus.classList.add('success');
+      tokenStatus.classList.remove('info');
+      tokenStatus.style.display = 'block';
+      
+      // 버튼 활성화
+      document.getElementById('copyIdTokenBtn').style.display = 'inline-block';
+      document.getElementById('sendBtn').style.display = 'block';
+      
+      console.log('ID Token:', currentIdToken);
+    }
+
+    // 직접 Google 로그인 (OAuth Code 방식)
+    function directGoogleLogin() {
+      const clientId = '377422593418-l8b7p9roc2p1vdpraphcd816aamavgip.apps.googleusercontent.com';
+      const redirectUri = window.location.origin + '/api/auth/google/callback';
+      const scope = 'openid email profile';
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=code` +
+        `&scope=${encodeURIComponent(scope)}` +
+        `&access_type=offline`;
+      
+      console.log('Redirecting to:', authUrl);
+      window.location.href = authUrl;
+    }
+
+    // Google Callback 결과 표시
+    function displayCallbackResult(data) {
+      // Step 4 결과 표시
+      const responseBox = document.getElementById('responseBox');
+      const copyResponseBtn = document.getElementById('copyResponseBtn');
+      const sendStatus = document.getElementById('sendStatus');
+      
+      responseBox.textContent = JSON.stringify(data, null, 2);
+      responseBox.classList.remove('empty');
+      copyResponseBtn.style.display = 'inline-block';
+      
+      sendStatus.innerHTML = `
+        <strong>✓ Google 로그인 성공!</strong><br>
+        이메일: ${data.email}<br>
+        신규 사용자: ${data.isNewUser ? '예' : '아니오'}
+      `;
+      sendStatus.classList.add('success');
+      sendStatus.classList.remove('info', 'error');
+      sendStatus.style.display = 'block';
+
+      // 토큰 저장
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('email', data.email);
+    }
+
+    async function sendToBackend() {
+      if (!currentIdToken) {
+        alert('먼저 Google 로그인을 진행하세요');
+        return;
+      }
+
+      const sendStatus = document.getElementById('sendStatus');
+      const responseBox = document.getElementById('responseBox');
+      
+      try {
+        sendStatus.textContent = '전송 중...';
+        sendStatus.classList.add('info');
+        sendStatus.style.display = 'block';
+
+        const response = await fetch('http://localhost:3000/api/auth/google', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idToken: currentIdToken
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          sendStatus.textContent = '✓ 로그인 성공!';
+          sendStatus.classList.remove('info');
+          sendStatus.classList.add('success');
+          
+          // 응답 표시
+          responseBox.textContent = JSON.stringify(data, null, 2);
+          responseBox.classList.remove('empty');
+          document.getElementById('copyResponseBtn').style.display = 'inline-block';
+          
+          // 토큰 저장 (선택사항)
+          if (data.accessToken) {
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            console.log('토큰이 localStorage에 저장되었습니다');
+          }
+        } else {
+          sendStatus.textContent = `✗ 오류: ${data.message}`;
+          sendStatus.classList.remove('info');
+          sendStatus.classList.add('error');
+          responseBox.textContent = JSON.stringify(data, null, 2);
+          responseBox.classList.remove('empty');
+        }
+      } catch (error) {
+        sendStatus.textContent = `✗ 오류: ${error.message}`;
+        sendStatus.classList.remove('info');
+        sendStatus.classList.add('error');
+        responseBox.textContent = error.message;
+        responseBox.classList.remove('empty');
+        console.error('Error:', error);
+      }
+    }
+
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      const text = element.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('복사되었습니다!');
+      }).catch(err => {
+        alert('복사 실패: ' + err);
+      });
+    }
+
+    // Google Sign-In 초기화
+    window.onload = function() {
+      google.accounts.id.initialize({
+        client_id: '377422593418-l8b7p9roc2p1vdpraphcd816aamavgip.apps.googleusercontent.com',
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('g_id_signin'),
+        { theme: 'outline', size: 'large' }
+      );
+    };
+  </script>
+</body>
+</html>

@@ -42,7 +42,7 @@ router.post('/apple', authController.appleLogin);
  * /api/auth/google:
  *   post:
  *     summary: 구글 로그인
- *     description: 구글 ID 토큰을 검증하고 로그인/회원가입 처리
+ *     description: 구글 ID 토큰 또는 인가 코드를 검증하고 로그인/회원가입 처리
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -50,12 +50,13 @@ router.post('/apple', authController.appleLogin);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - idToken
  *             properties:
  *               idToken:
  *                 type: string
- *                 description: 구글에서 받은 ID 토큰
+ *                 description: 구글에서 받은 ID 토큰 (idToken 또는 authorizationCode 중 하나 필수)
+ *               authorizationCode:
+ *                 type: string
+ *                 description: 구글 OAuth 인가 코드 (idToken 또는 authorizationCode 중 하나 필수)
  *     responses:
  *       200:
  *         description: 로그인 성공
@@ -153,5 +154,29 @@ router.post('/refresh', authController.refreshToken);
  *         description: 인증 필요
  */
 router.delete('/withdraw', authenticate, authController.withdraw);
+
+/**
+ * @swagger
+ * /api/auth/google/callback:
+ *   get:
+ *     summary: Google OAuth 콜백
+ *     description: Google 인증 후 리다이렉트 URL
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: Google 인증 코드
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: State 파라미터
+ *     responses:
+ *       200:
+ *         description: 리다이렉트 완료
+ */
+router.get('/google/callback', authController.googleCallback);
 
 module.exports = router;
