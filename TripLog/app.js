@@ -45,6 +45,10 @@ app.get('/test-apple-login', (req, res) => {
   res.sendFile(__dirname + '/test_apple_login.html');
 });
 
+app.get('/test-image-upload', (req, res) => {
+  res.sendFile(__dirname + '/test_image_upload.html');
+});
+
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,

@@ -29,12 +29,26 @@ const resizeImage = async (inputPath, outputPath, width, height, quality = 80) =
  */
 const createThumbnail = async (originalPath, filename) => {
   try {
-    // 현재는 원본 이미지를 그대로 썸네일로 사용
-    // Sharp가 문제를 일으키고 있으므로 나중에 개선
-    return `/uploads/posts/${filename}`;
+    const ext = path.extname(filename);
+    const nameWithoutExt = path.basename(filename, ext);
+    const thumbnailFilename = `${nameWithoutExt}_thumb.jpg`; // 항상 JPG로 저장
+    const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
+
+    // 400x400 JPG 썸네일 생성 (더 작은 파일 크기)
+    await sharp(originalPath)
+      .resize(400, 400, {
+        fit: 'cover',
+        position: 'center',
+      })
+      .jpeg({ progressive: true, quality: 75 })
+      .toFile(thumbnailPath);
+
+    console.log('✓ 썸네일 생성 완료:', thumbnailFilename);
+    return `/uploads/thumbnails/${thumbnailFilename}`;
   } catch (error) {
     console.error('썸네일 생성 오류:', error);
-    return null;
+    // 썸네일 생성 실패 시 원본 URL 반환
+    return `/uploads/posts/${filename}`;
   }
 };
 

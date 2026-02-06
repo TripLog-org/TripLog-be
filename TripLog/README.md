@@ -128,6 +128,55 @@ curl -X POST http://localhost:3000/api/posts \
 
 **지원 이미지 형식**: JPEG, JPG, PNG, GIF, WebP (최대 10개, 파일당 10MB 이하)
 
+**이미지 업로드 기능**:
+- ✅ 다중 이미지 업로드 (최대 10개)
+- ✅ 자동 썸네일 생성 (Sharp를 이용한 400x400 JPG 생성)
+- ✅ 이미지별 메타데이터 저장 (위치, 촬영시간, 설명)
+- ✅ 자동 파일명 관리 및 서버 저장
+- 📁 저장 경로: `/uploads/posts/` (원본), `/uploads/thumbnails/` (썸네일)
+
+**웹 테스트 페이지**: http://localhost:3000/test-image-upload
+
+---
+
+### 📸 이미지 처리 (Images)
+
+**썸네일 자동 생성**:
+- 업로드된 모든 이미지에 대해 400x400 JPG 썸네일 자동 생성
+- Sharp 라이브러리를 사용하여 효율적인 이미지 처리
+- 생성 실패 시 원본 이미지 URL 반환 (폴백)
+- 썸네일은 `thumbnail` 필드에 저장됨
+
+**응답 예시**:
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "123abc",
+    "images": [
+      {
+        "_id": "img001",
+        "url": "/uploads/posts/photo_12345.jpg",
+        "thumbnail": "/uploads/thumbnails/photo_12345_thumb.jpg",
+        "order": 0,
+        "location": {
+          "name": "부산 해운대",
+          "address": "부산 수영구 해운대로...",
+          "coordinates": {
+            "latitude": 37.27652,
+            "longitude": 127.00852
+          }
+        },
+        "capturedAt": "2026-02-05T12:00:00Z",
+        "description": "해운대 비치"
+      }
+    ]
+  }
+}
+```
+
+````
+
 ---
 
 ### ⭐ 추천 여행 (Recommendation)
@@ -363,6 +412,76 @@ GOOGLE_REDIRECT_URI=your_google_redirect_uri
 ```
 Authorization: Bearer {accessToken}
 ```
+
+---
+
+## Google OAuth 설정
+
+### Google Cloud Console 설정
+
+1. [Google Cloud Console](https://console.cloud.google.com) 접속
+2. 새 프로젝트 생성 또는 기존 프로젝트 선택
+3. **API 및 서비스** → **사용자 인증 정보**
+4. **사용자 인증 정보 만들기** → **OAuth 2.0 클라이언트 ID**
+5. 애플리케이션 유형: **웹 애플리케이션**
+6. **승인된 자바스크립트 원본** 추가:
+   - `http://localhost:3000`
+7. **승인된 리디렉션 URI** 추가:
+   - `http://localhost:3000/api/auth/google/callback`
+8. 클라이언트 ID와 클라이언트 비밀번호 복사
+
+### .env 설정
+
+```env
+GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
+```
+
+### Google 로그인 흐름
+
+**1. ID Token 방식** (권장):
+```bash
+POST /api/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "eyJhbGciOiJSUzI1NiIs..."
+}
+```
+
+**2. Authorization Code 방식** (웹 테스트):
+- 접속: http://localhost:3000/test-google-login
+- "Google 계정으로 직접 로그인" 버튼 클릭
+- 로그인 후 자동으로 콜백 처리
+
+### 응답 형식
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "user_123",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "provider": "google"
+  },
+  "isNewUser": true
+}
+```
+
+---
+
+## 웹 테스트 페이지
+
+모든 기능을 브라우저에서 테스트할 수 있습니다:
+
+| 페이지 | URL | 용도 |
+|--------|-----|------|
+| Google 로그인 | http://localhost:3000/test-google-login | Google OAuth 테스트 |
+| Apple 로그인 | http://localhost:3000/test-apple-login | Apple OAuth 테스트 (설정 필요) |
+| 이미지 업로드 | http://localhost:3000/test-image-upload | 이미지 업로드 및 메타데이터 테스트 |
 
 ---
 
