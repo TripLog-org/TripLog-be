@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "seed:recommendations": "node src/seeds/recommendations.js"
+    "seed:recommendations": "node src/seeds/recommendations.js",
+    "seed:posts": "node src/seeds/posts.js"
   },
   "dependencies": {
     "apple-signin-auth": "^2.0.0",

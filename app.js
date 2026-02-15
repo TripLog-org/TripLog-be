@@ -24,7 +24,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 app.use(cors({
-  origin: '*',
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -49,11 +49,30 @@ app.get('/test-image-upload', (req, res) => {
   res.sendFile(__dirname + '/test_image_upload.html');
 });
 
-// Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  explorer: true,
-  customSiteTitle: 'TripLog API 문서',
-}));
+// Swagger UI with dynamic server URL
+app.use('/api-docs', swaggerUi.serve);
+app.get('/api-docs', (req, res, next) => {
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const dynamicSwaggerSpec = {
+    ...swaggerSpec,
+    servers: [
+      {
+        url: `${protocol}://${host}`,
+        description: '현재 서버',
+      },
+      {
+        url: 'http://localhost:3000',
+        description: '로컬 서버',
+      },
+    ],
+  };
+  
+  swaggerUi.setup(dynamicSwaggerSpec, {
+    explorer: true,
+    customSiteTitle: 'TripLog API 문서',
+  })(req, res, next);
+});
 
 // Health check
 app.get('/', (req, res) => {

@@ -3,6 +3,38 @@ const { createThumbnail, deleteImages } = require('../utils/imageUtils');
 const multer = require('multer');
 
 /**
+ * @description zoom level에 따른 반경(km) 계산
+ * zoom level이 낮을수록 더 넓은 반경
+ */
+const getRadiusFromZoomLevel = (zoomLevel) => {
+  // zoom level에 따른 대략적인 반경 (km)
+  const zoomToRadius = {
+    1: 10000,  // 전 세계
+    2: 5000,
+    3: 2500,
+    4: 1250,
+    5: 625,
+    6: 312,
+    7: 156,
+    8: 78,
+    9: 39,
+    10: 20,
+    11: 10,
+    12: 5,
+    13: 2.5,
+    14: 1.25,
+    15: 0.625,
+    16: 0.312,
+    17: 0.156,
+    18: 0.078,
+    19: 0.039,
+    20: 0.020,
+  };
+  
+  return zoomToRadius[zoomLevel] || 10; // 기본값 10km
+};
+
+/**
  * @description 게시물 생성
  */
 exports.createPost = async (req, res) => {
@@ -167,7 +199,16 @@ exports.createPost = async (req, res) => {
  */
 exports.getPosts = async (req, res) => {
   try {
-    const { page = 1, limit = 10, sort = '-createdAt', tag, search } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      sort = '-createdAt', 
+      tag, 
+      search,
+      latitude,
+      longitude,
+      zoomLevel
+    } = req.query;
     const userId = req.user?.id;
 
     const query = { isPublished: true };
@@ -190,6 +231,42 @@ exports.getPosts = async (req, res) => {
     // 검색
     if (search) {
       query.content = { $regex: search, $options: 'i' };
+    }
+
+    // 위치 기반 필터링
+    if (latitude && longitude && zoomLevel) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const zoom = parseInt(zoomLevel);
+      
+      if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
+        // zoom level에 따른 반경 계산 (km)
+        const radiusKm = getRadiusFromZoomLevel(zoom);
+        // km를 미터로 변환
+        const radiusMeters = radiusKm * 1000;
+
+        // 이미지에 위치 정보가 있는 게시물 필터링
+        // MongoDB의 $geoWithin과 $centerSphere를 사용하여 반경 내 검색
+        // 반경을 라디안으로 변환: radiusMeters / 6378100 (지구 반경 미터)
+        const radiusInRadians = radiusMeters / 6378100;
+
+        query['images.location.coordinates'] = { $exists: true };
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            {
+              'images.location.coordinates.latitude': {
+                $gte: lat - (radiusKm / 111), // 위도 1도 ≈ 111km
+                $lte: lat + (radiusKm / 111)
+              },
+              'images.location.coordinates.longitude': {
+                $gte: lng - (radiusKm / (111 * Math.cos(lat * Math.PI / 180))),
+                $lte: lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180)))
+              }
+            }
+          ]
+        });
+      }
     }
 
     const posts = await Post.find(query)

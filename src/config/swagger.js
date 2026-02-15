@@ -14,7 +14,11 @@ const options = {
     servers: [
       {
         url: 'http://localhost:3000',
-        description: '개발 서버',
+        description: '개발 서버 (로컬)',
+      },
+      {
+        url: 'http://192.168.45.91:3000',
+        description: '개발 서버 (네트워크)',
       },
     ],
     components: {

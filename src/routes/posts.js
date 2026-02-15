@@ -104,6 +104,28 @@ router.post('/', authenticate, upload.array('images', 10), postController.create
  *         schema:
  *           type: string
  *         description: 검색어
+ *       - in: query
+ *         name: latitude
+ *         schema:
+ *           type: number
+ *           format: float
+ *         description: 현재 위치 위도 (위치 기반 필터링, optional)
+ *         example: 37.27652
+ *       - in: query
+ *         name: longitude
+ *         schema:
+ *           type: number
+ *           format: float
+ *         description: 현재 위치 경도 (위치 기반 필터링, optional)
+ *         example: 127.00852
+ *       - in: query
+ *         name: zoomLevel
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 20
+ *         description: 지도 줌 레벨 (1~20, 1=전세계 12=5km 20=0.02km)
+ *         example: 12
  *     responses:
  *       200:
  *         description: 피드 조회 성공
