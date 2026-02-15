@@ -204,10 +204,7 @@ exports.getPosts = async (req, res) => {
       limit = 10, 
       sort = '-createdAt', 
       tag, 
-      search,
-      latitude,
-      longitude,
-      zoomLevel
+      search
     } = req.query;
     const userId = req.user?.id;
 
@@ -233,42 +230,6 @@ exports.getPosts = async (req, res) => {
       query.content = { $regex: search, $options: 'i' };
     }
 
-    // 위치 기반 필터링
-    if (latitude && longitude && zoomLevel) {
-      const lat = parseFloat(latitude);
-      const lng = parseFloat(longitude);
-      const zoom = parseInt(zoomLevel);
-      
-      if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
-        // zoom level에 따른 반경 계산 (km)
-        const radiusKm = getRadiusFromZoomLevel(zoom);
-        // km를 미터로 변환
-        const radiusMeters = radiusKm * 1000;
-
-        // 이미지에 위치 정보가 있는 게시물 필터링
-        // MongoDB의 $geoWithin과 $centerSphere를 사용하여 반경 내 검색
-        // 반경을 라디안으로 변환: radiusMeters / 6378100 (지구 반경 미터)
-        const radiusInRadians = radiusMeters / 6378100;
-
-        query['images.location.coordinates'] = { $exists: true };
-        query.$and = query.$and || [];
-        query.$and.push({
-          $or: [
-            {
-              'images.location.coordinates.latitude': {
-                $gte: lat - (radiusKm / 111), // 위도 1도 ≈ 111km
-                $lte: lat + (radiusKm / 111)
-              },
-              'images.location.coordinates.longitude': {
-                $gte: lng - (radiusKm / (111 * Math.cos(lat * Math.PI / 180))),
-                $lte: lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180)))
-              }
-            }
-          ]
-        });
-      }
-    }
-
     const posts = await Post.find(query)
       .populate('author', 'username email profileImage')
       .populate('relatedTrip', 'title startDate endDate')
@@ -292,6 +253,139 @@ exports.getPosts = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '피드 조회에 실패했습니다.',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @description 지도용 게시물 조회 (사진 기반)
+ * 게시물의 각 사진을 개별 항목으로 펼쳐서 반환
+ */
+exports.getPostsForMap = async (req, res) => {
+  try {
+    const { 
+      latitude,
+      longitude,
+      zoomLevel,
+      tag,
+      limit = 100, // 지도에서는 많은 항목을 한번에 가져옴
+    } = req.query;
+    const userId = req.user?.id;
+
+    const query = { isPublished: true };
+
+    // 공개 게시물만 또는 본인 게시물 포함
+    if (userId) {
+      query.$or = [
+        { visibility: 'public' },
+        { author: userId },
+      ];
+    } else {
+      query.visibility = 'public';
+    }
+
+    // 태그 필터
+    if (tag) {
+      query.tags = tag.toLowerCase();
+    }
+
+    // 위치 정보가 있는 이미지만 포함된 게시물
+    query['images.location.coordinates'] = { $exists: true };
+
+    // 위치 기반 필터링 (필수)
+    if (latitude && longitude && zoomLevel) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const zoom = parseInt(zoomLevel);
+      
+      if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
+        // zoom level에 따른 반경 계산 (km)
+        const radiusKm = getRadiusFromZoomLevel(zoom);
+
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            {
+              'images.location.coordinates.latitude': {
+                $gte: lat - (radiusKm / 111),
+                $lte: lat + (radiusKm / 111)
+              },
+              'images.location.coordinates.longitude': {
+                $gte: lng - (radiusKm / (111 * Math.cos(lat * Math.PI / 180))),
+                $lte: lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180)))
+              }
+            }
+          ]
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: '위치 정보(latitude, longitude, zoomLevel)가 필요합니다.',
+      });
+    }
+
+    const posts = await Post.find(query)
+      .select('_id images author createdAt')
+      .populate('author', 'username profileImage')
+      .limit(limit * 1)
+      .sort('-createdAt')
+      .exec();
+
+    // 게시물의 각 사진을 개별 항목으로 펼치기
+    const photoItems = [];
+    
+    for (const post of posts) {
+      // author가 없는 경우 건너뛰기 (삭제된 사용자 등)
+      if (!post.author) {
+        continue;
+      }
+
+      // 위치 정보가 있는 이미지만 필터링
+      const photosWithLocation = post.images.filter(
+        img => img.location && img.location.coordinates && 
+               img.location.coordinates.latitude && 
+               img.location.coordinates.longitude
+      );
+
+      for (const image of photosWithLocation) {
+        photoItems.push({
+          postId: post._id,
+          photo: {
+            url: image.url,
+            thumbnail: image.thumbnail || image.url,
+            location: {
+              name: image.location.name,
+              coordinates: {
+                latitude: image.location.coordinates.latitude,
+                longitude: image.location.coordinates.longitude,
+              },
+              address: image.location.address,
+            },
+            capturedAt: image.capturedAt,
+            description: image.description,
+          },
+          author: {
+            _id: post.author._id,
+            username: post.author.username,
+            profileImage: post.author.profileImage,
+          },
+          createdAt: post.createdAt,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: photoItems,
+      total: photoItems.length,
+    });
+  } catch (error) {
+    console.error('지도용 피드 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '지도용 피드 조회에 실패했습니다.',
       error: error.message,
     });
   }

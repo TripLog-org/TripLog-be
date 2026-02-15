@@ -73,7 +73,7 @@ router.post('/', authenticate, upload.array('images', 10), postController.create
  * @swagger
  * /api/posts:
  *   get:
- *     summary: 피드 조회
+ *     summary: 피드 조회 (그리드형 UI용)
  *     tags: [Posts]
  *     parameters:
  *       - in: query
@@ -104,28 +104,6 @@ router.post('/', authenticate, upload.array('images', 10), postController.create
  *         schema:
  *           type: string
  *         description: 검색어
- *       - in: query
- *         name: latitude
- *         schema:
- *           type: number
- *           format: float
- *         description: 현재 위치 위도 (위치 기반 필터링, optional)
- *         example: 37.27652
- *       - in: query
- *         name: longitude
- *         schema:
- *           type: number
- *           format: float
- *         description: 현재 위치 경도 (위치 기반 필터링, optional)
- *         example: 127.00852
- *       - in: query
- *         name: zoomLevel
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 20
- *         description: 지도 줌 레벨 (1~20, 1=전세계 12=5km 20=0.02km)
- *         example: 12
  *     responses:
  *       200:
  *         description: 피드 조회 성공
@@ -170,6 +148,116 @@ router.get('/', postController.getPosts);
  *         description: 서버 오류
  */
 router.get('/my', authenticate, postController.getMyPosts);
+
+/**
+ * @swagger
+ * /api/posts/map:
+ *   get:
+ *     summary: 지도용 게시물 조회 (사진 기반)
+ *     description: 게시물의 각 사진을 개별 항목으로 반환. 게시물 1개에 사진 3개면 3개 항목 반환.
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: query
+ *         name: latitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *           format: float
+ *         description: 현재 위치 위도 (필수)
+ *         example: 37.5665
+ *       - in: query
+ *         name: longitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *           format: float
+ *         description: 현재 위치 경도 (필수)
+ *         example: 126.9780
+ *       - in: query
+ *         name: zoomLevel
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 20
+ *         description: 지도 줌 레벨 (필수, 1=전세계 12=5km 20=0.02km)
+ *         example: 12
+ *       - in: query
+ *         name: tag
+ *         schema:
+ *           type: string
+ *         description: 태그 필터 (선택)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: 최대 항목 수
+ *     responses:
+ *       200:
+ *         description: 지도용 피드 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       postId:
+ *                         type: string
+ *                         example: 507f1f77bcf86cd799439011
+ *                       photo:
+ *                         type: object
+ *                         properties:
+ *                           url:
+ *                             type: string
+ *                           thumbnail:
+ *                             type: string
+ *                           location:
+ *                             type: object
+ *                             properties:
+ *                               name:
+ *                                 type: string
+ *                               coordinates:
+ *                                 type: object
+ *                                 properties:
+ *                                   latitude:
+ *                                     type: number
+ *                                   longitude:
+ *                                     type: number
+ *                               address:
+ *                                 type: string
+ *                           capturedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           description:
+ *                             type: string
+ *                       author:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           username:
+ *                             type: string
+ *                           profileImage:
+ *                             type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 total:
+ *                   type: integer
+ *       400:
+ *         description: 위치 정보 누락
+ *       500:
+ *         description: 서버 오류
+ */
+router.get('/map', postController.getPostsForMap);
 
 /**
  * @swagger
