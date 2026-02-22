@@ -4,6 +4,24 @@ const appleSignin = require('apple-signin-auth');
 const { User } = require('../models');
 const config = require('../config');
 
+// 랜덤 닉네임 생성 헬퍼
+const generateRandomNickname = () => {
+  const adjectives = [
+    '행복한', '즐거운', '신나는', '활발한', '여유로운',
+    '자유로운', '설레는', '용감한', '따뜻한', '빛나는',
+    '씩씩한', '산뜻한', '기분좋은', '상쾌한', '느긋한',
+  ];
+  const nouns = [
+    '여행자', '탐험가', '모험가', '나그네', '방랑자',
+    '길손', '순례자', '배낭족', '트래블러', '보행자',
+    '산책자', '발걸음', '나들이꾼', '로드트리퍼', '항해사',
+  ];
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  const num = Math.floor(Math.random() * 10000);
+  return `${adj}${noun}${num}`;
+};
+
 // JWT 토큰 생성 헬퍼
 const generateTokens = (userId) => {
   const accessToken = jwt.sign({ userId }, config.jwt.secret, {
@@ -36,11 +54,14 @@ const upsertSocialUser = async ({ provider, providerId, email, name, profileImag
       throw error;
     }
 
+    const nickname = generateRandomNickname();
+
     user = await User.create({
       provider,
       providerId,
       email,
       name,
+      nickname,
       profileImage,
     });
     isNewUser = true;

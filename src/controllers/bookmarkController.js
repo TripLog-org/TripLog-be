@@ -7,7 +7,7 @@ const Recommendation = require('../models/Recommendation');
  */
 exports.toggleBookmark = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { recommendationId } = req.body;
 
     console.log('[Bookmark] Toggle request - userId:', userId, 'recommendationId:', recommendationId);
@@ -57,7 +57,7 @@ exports.toggleBookmark = async (req, res) => {
  */
 exports.checkBookmark = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { recommendationId } = req.params;
 
     const user = await User.findById(userId);
@@ -79,7 +79,7 @@ exports.checkBookmark = async (req, res) => {
  */
 exports.getMyBookmarks = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { page = 1, pageSize = 20, sortBy = '-createdAt' } = req.query;
 
     // 페이지 유효성 검사
@@ -125,7 +125,7 @@ exports.getMyBookmarks = async (req, res) => {
  */
 exports.clearAllBookmarks = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const user = await User.findByIdAndUpdate(
       userId,

@@ -7,7 +7,7 @@ exports.createComment = async (req, res) => {
   try {
     const { postId } = req.params;
     const { content, parentComment } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // 게시물 존재 확인
     const post = await Post.findById(postId);
@@ -129,7 +129,7 @@ exports.updateComment = async (req, res) => {
   try {
     const { id } = req.params;
     const { content } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const comment = await Comment.findById(id);
 
@@ -180,7 +180,7 @@ exports.updateComment = async (req, res) => {
 exports.deleteComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const comment = await Comment.findById(id);
 
@@ -232,7 +232,7 @@ exports.deleteComment = async (req, res) => {
 exports.likeComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const comment = await Comment.findById(id);
 
@@ -285,7 +285,7 @@ exports.likeComment = async (req, res) => {
 exports.unlikeComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const comment = await Comment.findById(id);
 

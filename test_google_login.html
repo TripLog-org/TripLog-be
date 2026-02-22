@@ -131,15 +131,22 @@
     <div class="section">
       <h2>Step 1: Google 로그인</h2>
       <div id="debugInfo" class="status info" style="display: none; background: #e3f2fd; color: #01579b; border: 1px solid #90caf9;"></div>
+      <div id="privateIpWarning" class="status" style="display: none; background: #fff3cd; color: #856404; border: 1px solid #ffc107;">
+        ⚠️ <strong>네트워크 IP 접속 감지</strong><br>
+        Google OAuth는 private IP(192.168.x.x)를 지원하지 않습니다.<br>
+        아래 ID Token 방식 버튼만 사용해주세요.
+      </div>
       <!-- ID Token 방식 (더 안정적) -->
       <div id="g_id_onload"
         data-client_id="377422593418-l8b7p9roc2p1vdpraphcd816aamavgip.apps.googleusercontent.com"
         data-callback="handleCredentialResponse">
       </div>
       <div id="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
-      <p style="margin-top: 15px; font-size: 12px; color: #666;">또는</p>
-      <!-- 직접 로그인 (OAuth Code 방식) -->
-      <button onclick="directGoogleLogin()" style="background: #4285F4; width: 100%; margin-top: 10px;">Google 계정으로 직접 로그인</button>
+      <!-- OAuth Code 방식은 localhost에서만 작동 -->
+      <div id="directLoginSection" style="display: none;">
+        <p style="margin-top: 15px; font-size: 12px; color: #666;">또는</p>
+        <button onclick="directGoogleLogin()" style="background: #4285F4; width: 100%; margin-top: 10px;">Google 계정으로 직접 로그인 (OAuth Code)</button>
+      </div>
     </div>
 
     <!-- ID Token 표시 -->
@@ -176,6 +183,21 @@
     console.log('Current URL:', window.location.href);
     console.log('Current Host:', window.location.hostname);
     console.log('Current Port:', window.location.port);
+
+    // Private IP 체크 및 경고 표시
+    const hostname = window.location.hostname;
+    const isPrivateIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname);
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    
+    if (isPrivateIp) {
+      console.warn('⚠️ Private IP 접속 감지:', hostname);
+      document.getElementById('privateIpWarning').style.display = 'block';
+      // OAuth Code 방식 버튼 숨김
+      document.getElementById('directLoginSection').style.display = 'none';
+    } else if (isLocalhost) {
+      // localhost에서는 OAuth Code 방식도 사용 가능
+      document.getElementById('directLoginSection').style.display = 'block';
+    }
 
     // URL 파라미터에서 토큰 확인 (Google 콜백에서)
     const urlParams = new URLSearchParams(window.location.search);
@@ -315,7 +337,11 @@
         sendStatus.classList.add('info');
         sendStatus.style.display = 'block';
 
-        const response = await fetch('http://localhost:3000/api/auth/google', {
+        // 현재 접속한 호스트를 사용
+        const apiUrl = `${window.location.origin}/api/auth/google`;
+        console.log('API URL:', apiUrl);
+
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

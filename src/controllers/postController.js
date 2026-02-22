@@ -3,6 +3,21 @@ const { createThumbnail, deleteImages } = require('../utils/imageUtils');
 const multer = require('multer');
 
 /**
+ * 게시물 응답 변환 헬퍼
+ * - likes 배열 제거, isLiked boolean 추가
+ * - bookmarks 배열 제거, isBookmarked boolean 추가
+ */
+const transformPost = (post, userId) => {
+  const obj = post.toObject ? post.toObject() : { ...post };
+  const uid = userId ? String(userId) : null;
+  obj.isLiked = uid ? (obj.likes || []).some(id => String(id) === uid) : false;
+  obj.isBookmarked = uid ? (obj.bookmarks || []).some(id => String(id) === uid) : false;
+  delete obj.likes;
+  delete obj.bookmarks;
+  return obj;
+};
+
+/**
  * @description zoom level에 따른 반경(km) 계산
  * zoom level이 낮을수록 더 넓은 반경
  */
@@ -40,7 +55,7 @@ const getRadiusFromZoomLevel = (zoomLevel) => {
 exports.createPost = async (req, res) => {
   try {
     const { content, location, tags, visibility, relatedTrip, relatedPlace } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // 이미지 처리
     const images = [];
@@ -206,7 +221,7 @@ exports.getPosts = async (req, res) => {
       tag, 
       search
     } = req.query;
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
 
     const query = { isPublished: true };
 
@@ -231,7 +246,7 @@ exports.getPosts = async (req, res) => {
     }
 
     const posts = await Post.find(query)
-      .populate('author', 'username email profileImage')
+      .populate('author', 'username email profileImage nickname')
       .populate('relatedTrip', 'title startDate endDate')
       .populate('relatedPlace', 'name location')
       .sort(sort)
@@ -241,9 +256,11 @@ exports.getPosts = async (req, res) => {
 
     const count = await Post.countDocuments(query);
 
+    const transformedPosts = posts.map(post => transformPost(post, userId));
+
     res.json({
       success: true,
-      data: posts,
+      data: transformedPosts,
       totalPages: Math.ceil(count / limit),
       currentPage: page,
       total: count,
@@ -271,7 +288,7 @@ exports.getPostsForMap = async (req, res) => {
       tag,
       limit = 100, // 지도에서는 많은 항목을 한번에 가져옴
     } = req.query;
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
 
     const query = { isPublished: true };
 
@@ -397,10 +414,10 @@ exports.getPostsForMap = async (req, res) => {
 exports.getPost = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
 
     const post = await Post.findById(id)
-      .populate('author', 'username email profileImage')
+      .populate('author', 'username email profileImage nickname')
       .populate('relatedTrip', 'title startDate endDate')
       .populate('relatedPlace', 'name location');
 
@@ -425,7 +442,7 @@ exports.getPost = async (req, res) => {
 
     res.json({
       success: true,
-      data: post,
+      data: transformPost(post, userId),
     });
   } catch (error) {
     console.error('게시물 조회 오류:', error);
@@ -442,7 +459,7 @@ exports.getPost = async (req, res) => {
  */
 exports.getMyPosts = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { page = 1, limit = 10, sort = '-createdAt' } = req.query;
 
     const posts = await Post.find({ author: userId, isPublished: true })
@@ -455,9 +472,11 @@ exports.getMyPosts = async (req, res) => {
 
     const count = await Post.countDocuments({ author: userId, isPublished: true });
 
+    const transformedPosts = posts.map(post => transformPost(post, userId));
+
     res.json({
       success: true,
-      data: posts,
+      data: transformedPosts,
       totalPages: Math.ceil(count / limit),
       currentPage: page,
       total: count,
@@ -478,7 +497,7 @@ exports.getMyPosts = async (req, res) => {
 exports.updatePost = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { content, location, tags, visibility } = req.body;
 
     const post = await Post.findById(id);
@@ -527,7 +546,7 @@ exports.updatePost = async (req, res) => {
 exports.deletePost = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const post = await Post.findById(id);
 
@@ -580,7 +599,7 @@ exports.deletePost = async (req, res) => {
 exports.likePost = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const post = await Post.findById(id);
 
@@ -625,7 +644,7 @@ exports.likePost = async (req, res) => {
 exports.unlikePost = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const post = await Post.findById(id);
 
@@ -659,6 +678,98 @@ exports.unlikePost = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '좋아요 취소에 실패했습니다.',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @description 게시물 북마크
+ */
+exports.bookmarkPost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    const post = await Post.findById(id);
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: '게시물을 찾을 수 없습니다.',
+      });
+    }
+
+    // 이미 북마크한 경우
+    if (post.bookmarks.includes(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: '이미 북마크한 게시물입니다.',
+      });
+    }
+
+    post.bookmarks.push(userId);
+    post.bookmarkCount += 1;
+    await post.save();
+
+    res.json({
+      success: true,
+      data: {
+        bookmarkCount: post.bookmarkCount,
+        isBookmarked: true,
+      },
+    });
+  } catch (error) {
+    console.error('북마크 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '북마크에 실패했습니다.',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @description 게시물 북마크 취소
+ */
+exports.unbookmarkPost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    const post = await Post.findById(id);
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: '게시물을 찾을 수 없습니다.',
+      });
+    }
+
+    // 북마크하지 않은 경우
+    if (!post.bookmarks.includes(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: '북마크하지 않은 게시물입니다.',
+      });
+    }
+
+    post.bookmarks = post.bookmarks.filter((id) => id.toString() !== userId);
+    post.bookmarkCount = Math.max(0, post.bookmarkCount - 1);
+    await post.save();
+
+    res.json({
+      success: true,
+      data: {
+        bookmarkCount: post.bookmarkCount,
+        isBookmarked: false,
+      },
+    });
+  } catch (error) {
+    console.error('북마크 취소 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '북마크 취소에 실패했습니다.',
       error: error.message,
     });
   }

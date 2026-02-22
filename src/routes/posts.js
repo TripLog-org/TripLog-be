@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const postController = require('../controllers/postController');
 const commentController = require('../controllers/commentController');
-const { authenticate } = require('../middlewares/auth');
+const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { upload } = require('../middlewares/upload');
 
 /**
@@ -74,7 +74,11 @@ router.post('/', authenticate, upload.array('images', 10), postController.create
  * /api/posts:
  *   get:
  *     summary: 피드 조회 (그리드형 UI용)
+ *     description: 로그인 시 isLiked, isBookmarked 반영 (인증 선택)
  *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: query
  *         name: page
@@ -110,7 +114,7 @@ router.post('/', authenticate, upload.array('images', 10), postController.create
  *       500:
  *         description: 서버 오류
  */
-router.get('/', postController.getPosts);
+router.get('/', optionalAuth, postController.getPosts);
 
 /**
  * @swagger
@@ -154,8 +158,11 @@ router.get('/my', authenticate, postController.getMyPosts);
  * /api/posts/map:
  *   get:
  *     summary: 지도용 게시물 조회 (사진 기반)
- *     description: 게시물의 각 사진을 개별 항목으로 반환. 게시물 1개에 사진 3개면 3개 항목 반환.
+ *     description: 게시물의 각 사진을 개별 항목으로 반환. 게시물 1개에 사진 3개면 3개 항목 반환. 로그인 시 isLiked, isBookmarked 반영 (인증 선택)
  *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: query
  *         name: latitude
@@ -257,14 +264,18 @@ router.get('/my', authenticate, postController.getMyPosts);
  *       500:
  *         description: 서버 오류
  */
-router.get('/map', postController.getPostsForMap);
+router.get('/map', optionalAuth, postController.getPostsForMap);
 
 /**
  * @swagger
  * /api/posts/{id}:
  *   get:
  *     summary: 특정 게시물 조회
+ *     description: 로그인 시 isLiked, isBookmarked 반영 (인증 선택)
  *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: path
  *         name: id
@@ -280,7 +291,7 @@ router.get('/map', postController.getPostsForMap);
  *       500:
  *         description: 서버 오류
  */
-router.get('/:id', postController.getPost);
+router.get('/:id', optionalAuth, postController.getPost);
 
 /**
  * @swagger
@@ -412,6 +423,64 @@ router.post('/:id/like', authenticate, postController.likePost);
  *         description: 서버 오류
  */
 router.delete('/:id/unlike', authenticate, postController.unlikePost);
+
+/**
+ * @swagger
+ * /api/posts/{id}/bookmark:
+ *   post:
+ *     summary: 게시물 북마크
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 게시물 ID
+ *     responses:
+ *       200:
+ *         description: 북마크 성공
+ *       400:
+ *         description: 이미 북마크한 게시물
+ *       401:
+ *         description: 인증 실패
+ *       404:
+ *         description: 게시물을 찾을 수 없음
+ *       500:
+ *         description: 서버 오류
+ */
+router.post('/:id/bookmark', authenticate, postController.bookmarkPost);
+
+/**
+ * @swagger
+ * /api/posts/{id}/unbookmark:
+ *   delete:
+ *     summary: 게시물 북마크 취소
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 게시물 ID
+ *     responses:
+ *       200:
+ *         description: 북마크 취소 성공
+ *       400:
+ *         description: 북마크하지 않은 게시물
+ *       401:
+ *         description: 인증 실패
+ *       404:
+ *         description: 게시물을 찾을 수 없음
+ *       500:
+ *         description: 서버 오류
+ */
+router.delete('/:id/unbookmark', authenticate, postController.unbookmarkPost);
 
 // 댓글 관련 라우트
 /**

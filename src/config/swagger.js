@@ -36,6 +36,7 @@ const options = {
             _id: { type: 'string', example: '507f1f77bcf86cd799439011' },
             email: { type: 'string', example: 'user@example.com' },
             name: { type: 'string', example: '홍길동' },
+            nickname: { type: 'string', example: '행복한여행자1234' },
             profileImage: { type: 'string', example: 'https://example.com/image.jpg' },
             provider: { type: 'string', enum: ['apple', 'google'], example: 'apple' },
             createdAt: { type: 'string', format: 'date-time' },
