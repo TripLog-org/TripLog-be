@@ -1,4 +1,5 @@
 const { Photo, Place } = require('../models');
+const { deleteImages } = require('../utils/imageUtils');
 
 // 장소별 사진 목록 조회 (Public)
 exports.getPhotosByPlace = async (req, res, next) => {
@@ -91,7 +92,12 @@ exports.deletePhoto = async (req, res, next) => {
 
     await photo.deleteOne();
 
-    // TODO: 실제 파일 삭제 (S3 등)
+    // R2에서 파일 삭제
+    const urlsToDelete = [photo.url];
+    if (photo.thumbnailUrl) {
+      urlsToDelete.push(photo.thumbnailUrl);
+    }
+    await deleteImages(urlsToDelete);
 
     res.json({ message: '사진이 삭제되었습니다.' });
   } catch (error) {

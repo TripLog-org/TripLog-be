@@ -1,23 +1,25 @@
 const sharp = require('sharp');
 const path = require('path');
-const fs = require('fs').promises;
-const { thumbnailsDir } = require('../middlewares/upload');
+const { v4: uuidv4 } = require('uuid');
+const { uploadToR2, deleteMultipleFromR2 } = require('./r2Storage');
 
 /**
- * 이미지 리사이징 및 최적화
+ * 버퍼에서 이미지 리사이징 및 최적화 (R2 업로드용)
+ * @param {Buffer} buffer - 원본 이미지 버퍼
+ * @param {number} width
+ * @param {number} height
+ * @param {number} quality
+ * @returns {Buffer} 리사이징된 이미지 버퍼
  */
-const resizeImage = async (inputPath, outputPath, width, height, quality = 80) => {
+const resizeImageBuffer = async (buffer, width, height, quality = 80) => {
   try {
-    // PNG로 저장하도록 변경 (JPEG 문제 가능성 제거)
-    await sharp(inputPath)
+    return await sharp(buffer)
       .resize(width, height, {
         fit: 'inside',
         withoutEnlargement: true,
       })
       .png({ progressive: true })
-      .toFile(outputPath);
-    
-    return outputPath;
+      .toBuffer();
   } catch (error) {
     console.error('이미지 리사이징 오류:', error);
     throw error;
@@ -25,40 +27,49 @@ const resizeImage = async (inputPath, outputPath, width, height, quality = 80) =
 };
 
 /**
- * 썸네일 생성
+ * 이미지를 R2에 업로드하고 URL 반환
+ * @param {Buffer} buffer - 이미지 버퍼
+ * @param {string} originalname - 원본 파일명
+ * @param {string} mimetype - MIME 타입
+ * @returns {{ imageUrl: string, thumbnailUrl: string }} R2 URL
  */
-const createThumbnail = async (originalPath, filename) => {
-  try {
-    const ext = path.extname(filename);
-    const nameWithoutExt = path.basename(filename, ext);
-    const thumbnailFilename = `${nameWithoutExt}_thumb.jpg`; // 항상 JPG로 저장
-    const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
+const uploadImageToR2 = async (buffer, originalname, mimetype) => {
+  const ext = path.extname(originalname);
+  const uniqueId = uuidv4();
+  const imageKey = `posts/${uniqueId}${ext}`;
+  const thumbnailKey = `thumbnails/${uniqueId}_thumb.jpg`;
 
-    // 400x400 JPG 썸네일 생성 (더 작은 파일 크기)
-    await sharp(originalPath)
+  // 원본 이미지 업로드
+  const imageUrl = await uploadToR2(buffer, imageKey, mimetype);
+
+  // 썸네일 생성 및 업로드
+  let thumbnailUrl = imageUrl;
+  try {
+    const thumbBuffer = await sharp(buffer)
       .resize(400, 400, {
         fit: 'cover',
         position: 'center',
       })
       .jpeg({ progressive: true, quality: 75 })
-      .toFile(thumbnailPath);
+      .toBuffer();
 
-    console.log('✓ 썸네일 생성 완료:', thumbnailFilename);
-    return `/uploads/thumbnails/${thumbnailFilename}`;
+    thumbnailUrl = await uploadToR2(thumbBuffer, thumbnailKey, 'image/jpeg');
+    console.log('✓ 썸네일 생성 및 R2 업로드 완료:', thumbnailKey);
   } catch (error) {
     console.error('썸네일 생성 오류:', error);
-    // 썸네일 생성 실패 시 원본 URL 반환
-    return `/uploads/posts/${filename}`;
+    // 썸네일 실패 시 원본 URL 사용
   }
+
+  return { imageUrl, thumbnailUrl };
 };
 
 /**
- * 이미지 삭제
+ * R2에서 이미지 삭제
+ * @param {string[]} imageUrls - R2 공개 URL 배열
  */
-const deleteImage = async (imagePath) => {
+const deleteImages = async (imageUrls) => {
   try {
-    const fullPath = path.join(__dirname, '../..', imagePath);
-    await fs.unlink(fullPath);
+    await deleteMultipleFromR2(imageUrls);
     return true;
   } catch (error) {
     console.error('이미지 삭제 오류:', error);
@@ -66,23 +77,8 @@ const deleteImage = async (imagePath) => {
   }
 };
 
-/**
- * 여러 이미지 삭제
- */
-const deleteImages = async (imagePaths) => {
-  try {
-    const deletePromises = imagePaths.map((imagePath) => deleteImage(imagePath));
-    await Promise.all(deletePromises);
-    return true;
-  } catch (error) {
-    console.error('이미지들 삭제 오류:', error);
-    return false;
-  }
-};
-
 module.exports = {
-  resizeImage,
-  createThumbnail,
-  deleteImage,
+  resizeImageBuffer,
+  uploadImageToR2,
   deleteImages,
 };

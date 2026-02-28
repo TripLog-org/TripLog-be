@@ -1,5 +1,5 @@
 const { Post, User } = require('../models');
-const { createThumbnail, deleteImages } = require('../utils/imageUtils');
+const { uploadImageToR2, deleteImages } = require('../utils/imageUtils');
 const multer = require('multer');
 
 /**
@@ -76,10 +76,13 @@ exports.createPost = async (req, res) => {
 
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i];
-        const imageUrl = `/uploads/posts/${file.filename}`;
-        
-        // 썸네일 생성
-        const thumbnailUrl = await createThumbnail(file.path, file.filename);
+
+        // R2에 이미지 업로드 (원본 + 썸네일)
+        const { imageUrl, thumbnailUrl } = await uploadImageToR2(
+          file.buffer,
+          file.originalname,
+          file.mimetype
+        );
 
         // 해당 이미지의 메타데이터 가져오기
         const meta = imageMetadata[i] || {};

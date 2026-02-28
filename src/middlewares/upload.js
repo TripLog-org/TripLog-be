@@ -1,29 +1,8 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 
-// 업로드 디렉토리 생성
-const uploadDir = path.join(__dirname, '../../uploads');
-const postsDir = path.join(uploadDir, 'posts');
-const thumbnailsDir = path.join(uploadDir, 'thumbnails');
-
-[uploadDir, postsDir, thumbnailsDir].forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
-
-// Multer 저장소 설정
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, postsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
+// Multer 메모리 저장소 설정 (R2 업로드용)
+const storage = multer.memoryStorage();
 
 // 파일 필터 (이미지만 허용)
 const fileFilter = (req, file, cb) => {
@@ -68,7 +47,4 @@ const handleMulterError = (err, req, res, next) => {
 module.exports = {
   upload,
   handleMulterError,
-  uploadDir,
-  postsDir,
-  thumbnailsDir,
 };
