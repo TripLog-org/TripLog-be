@@ -1,6 +1,6 @@
 const sharp = require('sharp');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const { uploadToR2, deleteMultipleFromR2 } = require('./r2Storage');
 
 /**
@@ -35,7 +35,7 @@ const resizeImageBuffer = async (buffer, width, height, quality = 80) => {
  */
 const uploadImageToR2 = async (buffer, originalname, mimetype) => {
   const ext = path.extname(originalname);
-  const uniqueId = uuidv4();
+  const uniqueId = randomUUID();
   const imageKey = `posts/${uniqueId}${ext}`;
   const thumbnailKey = `thumbnails/${uniqueId}_thumb.jpg`;
 
