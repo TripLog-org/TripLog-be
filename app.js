@@ -13,6 +13,9 @@ const errorHandler = require('./src/middlewares/errorHandler');
 
 const app = express();
 
+// 프록시(Vercel) 환경에서 원본 프로토콜/호스트 신뢰
+app.set('trust proxy', 1);
+
 // DB 연결
 connectDB();
 
@@ -54,8 +57,14 @@ app.get('/test-image-upload', (req, res) => {
 
 // Swagger spec with dynamic server URL
 const getDynamicSwaggerSpec = (req) => {
-  const protocol = req.protocol;
-  const host = req.get('host');
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const forwardedHost = req.headers['x-forwarded-host'];
+
+  const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
+  const protocol = isVercel
+    ? 'https'
+    : (Array.isArray(forwardedProto) ? forwardedProto[0] : (forwardedProto || req.protocol));
+  const host = Array.isArray(forwardedHost) ? forwardedHost[0] : (forwardedHost || req.get('host'));
 
   return {
     ...swaggerSpec,
