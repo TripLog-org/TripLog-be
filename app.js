@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const swaggerUi = require('swagger-ui-express');
 
 const config = require('./src/config');
 const connectDB = require('./src/config/database');
@@ -49,12 +48,12 @@ app.get('/test-image-upload', (req, res) => {
   res.sendFile(__dirname + '/test_image_upload.html');
 });
 
-// Swagger UI with dynamic server URL
-app.use('/api-docs', swaggerUi.serve);
-app.get('/api-docs', (req, res, next) => {
+// Swagger spec with dynamic server URL
+const getDynamicSwaggerSpec = (req) => {
   const protocol = req.protocol;
   const host = req.get('host');
-  const dynamicSwaggerSpec = {
+
+  return {
     ...swaggerSpec,
     servers: [
       {
@@ -67,11 +66,48 @@ app.get('/api-docs', (req, res, next) => {
       },
     ],
   };
-  
-  swaggerUi.setup(dynamicSwaggerSpec, {
-    explorer: true,
-    customSiteTitle: 'TripLog API 문서',
-  })(req, res, next);
+};
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.json(getDynamicSwaggerSpec(req));
+});
+
+// Swagger UI page (CDN assets, Vercel 호환)
+app.get('/api-docs', (req, res) => {
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TripLog API 문서</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+      html, body { margin: 0; padding: 0; }
+      #swagger-ui { max-width: 1200px; margin: 0 auto; }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.onload = () => {
+        window.ui = SwaggerUIBundle({
+          url: '/api-docs.json',
+          dom_id: '#swagger-ui',
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          layout: 'BaseLayout',
+          docExpansion: 'none',
+          displayRequestDuration: true,
+        });
+      };
+    </script>
+  </body>
+</html>`;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
 });
 
 // Health check
