@@ -90,6 +90,11 @@ app.use((req, res) => {
 // 에러 핸들러
 app.use(errorHandler);
 
-app.listen(config.port, () => {
-  console.log(`Server running at http://localhost:${config.port}`);
-});
+// 로컬 실행 시에만 listen (Vercel에서는 module.exports로 처리)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(config.port, () => {
+    console.log(`Server running at http://localhost:${config.port}`);
+  });
+}
+
+module.exports = app;
