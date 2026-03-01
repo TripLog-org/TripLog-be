@@ -1,4 +1,5 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const config = require('../config');
 
 // Cloudflare R2 S3 호환 클라이언트
@@ -58,15 +59,37 @@ const deleteFromR2 = async (key) => {
  * @returns {string|null} 객체 키
  */
 const getKeyFromUrl = (url) => {
-  if (!url || !PUBLIC_URL) return null;
-  if (url.startsWith(PUBLIC_URL)) {
+  if (!url) return null;
+
+  // 이미 키만 저장된 경우
+  if (!url.startsWith('http') && !url.startsWith('/uploads/')) {
+    return url;
+  }
+
+  if (PUBLIC_URL && url.startsWith(PUBLIC_URL)) {
     return url.substring(PUBLIC_URL.length + 1); // +1 for the '/'
   }
+
   // /uploads/ 로 시작하는 레거시 로컬 경로는 무시
   if (url.startsWith('/uploads/')) {
     return null;
   }
+
   return null;
+};
+
+/**
+ * R2 presigned URL 생성
+ * @param {string} key - R2 객체 키
+ * @param {number} expiresIn - 만료(초)
+ */
+const getPresignedUrl = async (key, expiresIn = 3600) => {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+  });
+
+  return getSignedUrl(s3Client, command, { expiresIn });
 };
 
 /**
@@ -89,5 +112,6 @@ module.exports = {
   uploadToR2,
   deleteFromR2,
   getKeyFromUrl,
+  getPresignedUrl,
   deleteMultipleFromR2,
 };

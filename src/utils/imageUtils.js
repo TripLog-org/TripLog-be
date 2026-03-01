@@ -31,7 +31,7 @@ const resizeImageBuffer = async (buffer, width, height, quality = 80) => {
  * @param {Buffer} buffer - 이미지 버퍼
  * @param {string} originalname - 원본 파일명
  * @param {string} mimetype - MIME 타입
- * @returns {{ imageUrl: string, thumbnailUrl: string }} R2 URL
+ * @returns {{ imageKey: string, thumbnailKey: string }} R2 객체 키
  */
 const uploadImageToR2 = async (buffer, originalname, mimetype) => {
   const ext = path.extname(originalname);
@@ -40,10 +40,10 @@ const uploadImageToR2 = async (buffer, originalname, mimetype) => {
   const thumbnailKey = `thumbnails/${uniqueId}_thumb.jpg`;
 
   // 원본 이미지 업로드
-  const imageUrl = await uploadToR2(buffer, imageKey, mimetype);
+  await uploadToR2(buffer, imageKey, mimetype);
 
   // 썸네일 생성 및 업로드
-  let thumbnailUrl = imageUrl;
+  let finalThumbnailKey = imageKey;
   try {
     const thumbBuffer = await sharp(buffer)
       .resize(400, 400, {
@@ -53,14 +53,15 @@ const uploadImageToR2 = async (buffer, originalname, mimetype) => {
       .jpeg({ progressive: true, quality: 75 })
       .toBuffer();
 
-    thumbnailUrl = await uploadToR2(thumbBuffer, thumbnailKey, 'image/jpeg');
+    await uploadToR2(thumbBuffer, thumbnailKey, 'image/jpeg');
+    finalThumbnailKey = thumbnailKey;
     console.log('✓ 썸네일 생성 및 R2 업로드 완료:', thumbnailKey);
   } catch (error) {
     console.error('썸네일 생성 오류:', error);
     // 썸네일 실패 시 원본 URL 사용
   }
 
-  return { imageUrl, thumbnailUrl };
+  return { imageKey, thumbnailKey: finalThumbnailKey };
 };
 
 /**

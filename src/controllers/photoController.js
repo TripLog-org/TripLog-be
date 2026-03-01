@@ -1,5 +1,6 @@
 const { Photo, Place } = require('../models');
 const { deleteImages } = require('../utils/imageUtils');
+const { getPresignedUrl, getKeyFromUrl } = require('../utils/r2Storage');
 
 // 장소별 사진 목록 조회 (Public)
 exports.getPhotosByPlace = async (req, res, next) => {
@@ -13,7 +14,19 @@ exports.getPhotosByPlace = async (req, res, next) => {
     const photos = await Photo.find({ place: req.params.placeId })
       .sort({ order: 1 });
 
-    res.json(photos);
+    const signedPhotos = [];
+    for (const photo of photos) {
+      const obj = photo.toObject ? photo.toObject() : { ...photo };
+      const urlKey = getKeyFromUrl(obj.url);
+      const thumbKey = getKeyFromUrl(obj.thumbnailUrl || obj.url);
+
+      if (urlKey) obj.url = await getPresignedUrl(urlKey);
+      if (thumbKey) obj.thumbnailUrl = await getPresignedUrl(thumbKey);
+
+      signedPhotos.push(obj);
+    }
+
+    res.json(signedPhotos);
   } catch (error) {
     next(error);
   }
@@ -32,7 +45,14 @@ exports.getPhoto = async (req, res, next) => {
       return res.status(404).json({ message: '사진을 찾을 수 없습니다.' });
     }
 
-    res.json(photo);
+    const obj = photo.toObject ? photo.toObject() : { ...photo };
+    const urlKey = getKeyFromUrl(obj.url);
+    const thumbKey = getKeyFromUrl(obj.thumbnailUrl || obj.url);
+
+    if (urlKey) obj.url = await getPresignedUrl(urlKey);
+    if (thumbKey) obj.thumbnailUrl = await getPresignedUrl(thumbKey);
+
+    res.json(obj);
   } catch (error) {
     next(error);
   }

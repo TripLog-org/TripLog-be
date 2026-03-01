@@ -1,5 +1,6 @@
 const { Post, User } = require('../models');
 const { uploadImageToR2, deleteImages } = require('../utils/imageUtils');
+const { getPresignedUrl, getKeyFromUrl } = require('../utils/r2Storage');
 const multer = require('multer');
 
 /**
@@ -15,6 +16,30 @@ const transformPost = (post, userId) => {
   delete obj.likes;
   delete obj.bookmarks;
   return obj;
+};
+
+/**
+ * 이미지 URL을 presigned URL로 변환
+ */
+const signImageUrls = async (images, expiresIn = 3600) => {
+  if (!Array.isArray(images)) return images;
+
+  const signed = [];
+  for (const img of images) {
+    const imageKey = getKeyFromUrl(img.url);
+    const thumbnailKey = getKeyFromUrl(img.thumbnail || img.url);
+
+    const imageUrl = imageKey ? await getPresignedUrl(imageKey, expiresIn) : img.url;
+    const thumbnailUrl = thumbnailKey ? await getPresignedUrl(thumbnailKey, expiresIn) : (img.thumbnail || img.url);
+
+    signed.push({
+      ...img,
+      url: imageUrl,
+      thumbnail: thumbnailUrl,
+    });
+  }
+
+  return signed;
 };
 
 /**
@@ -78,7 +103,7 @@ exports.createPost = async (req, res) => {
         const file = req.files[i];
 
         // R2에 이미지 업로드 (원본 + 썸네일)
-        const { imageUrl, thumbnailUrl } = await uploadImageToR2(
+        const { imageKey, thumbnailKey } = await uploadImageToR2(
           file.buffer,
           file.originalname,
           file.mimetype
@@ -88,8 +113,8 @@ exports.createPost = async (req, res) => {
         const meta = imageMetadata[i] || {};
 
         const imageObject = {
-          url: imageUrl,
-          thumbnail: thumbnailUrl || imageUrl,
+          url: imageKey,
+          thumbnail: thumbnailKey || imageKey,
           order: i,
         };
 
@@ -178,9 +203,12 @@ exports.createPost = async (req, res) => {
     await post.save();
     await post.populate('author', 'username email profileImage');
 
+    const responsePost = transformPost(post, userId);
+    responsePost.images = await signImageUrls(responsePost.images);
+
     res.status(201).json({
       success: true,
-      data: post,
+      data: responsePost,
     });
   } catch (error) {
     // Multer 에러 처리
@@ -259,7 +287,12 @@ exports.getPosts = async (req, res) => {
 
     const count = await Post.countDocuments(query);
 
-    const transformedPosts = posts.map(post => transformPost(post, userId));
+    const transformedPosts = [];
+    for (const post of posts) {
+      const transformed = transformPost(post, userId);
+      transformed.images = await signImageUrls(transformed.images);
+      transformedPosts.push(transformed);
+    }
 
     res.json({
       success: true,
@@ -370,11 +403,17 @@ exports.getPostsForMap = async (req, res) => {
       );
 
       for (const image of photosWithLocation) {
+        const photoUrlKey = getKeyFromUrl(image.url);
+        const thumbnailKey = getKeyFromUrl(image.thumbnail || image.url);
+
+        const photoUrl = photoUrlKey ? await getPresignedUrl(photoUrlKey) : image.url;
+        const thumbnailUrl = thumbnailKey ? await getPresignedUrl(thumbnailKey) : (image.thumbnail || image.url);
+
         photoItems.push({
           postId: post._id,
           photo: {
-            url: image.url,
-            thumbnail: image.thumbnail || image.url,
+            url: photoUrl,
+            thumbnail: thumbnailUrl,
             location: {
               name: image.location.name,
               coordinates: {
@@ -443,9 +482,12 @@ exports.getPost = async (req, res) => {
     post.viewCount += 1;
     await post.save();
 
+    const transformed = transformPost(post, userId);
+    transformed.images = await signImageUrls(transformed.images);
+
     res.json({
       success: true,
-      data: transformPost(post, userId),
+      data: transformed,
     });
   } catch (error) {
     console.error('게시물 조회 오류:', error);
@@ -475,7 +517,12 @@ exports.getMyPosts = async (req, res) => {
 
     const count = await Post.countDocuments({ author: userId, isPublished: true });
 
-    const transformedPosts = posts.map(post => transformPost(post, userId));
+    const transformedPosts = [];
+    for (const post of posts) {
+      const transformed = transformPost(post, userId);
+      transformed.images = await signImageUrls(transformed.images);
+      transformedPosts.push(transformed);
+    }
 
     res.json({
       success: true,
