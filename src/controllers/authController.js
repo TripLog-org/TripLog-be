@@ -33,6 +33,17 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
+const decodeJwtPayload = (token) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    return payload;
+  } catch (e) {
+    return null;
+  }
+};
+
 const getGoogleAudiences = () => {
   const audiences = new Set();
 
@@ -161,10 +172,34 @@ exports.googleLoginNative = async (req, res, next) => {
     // 모든 가능한 클라이언트 ID 검증 (web, iOS, Android 등)
     const audience = getGoogleAudiences();
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience,
-    });
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken,
+        audience,
+      });
+    } catch (verifyError) {
+      const decoded = decodeJwtPayload(idToken);
+      console.error('Google Native verifyIdToken 실패', {
+        allowedAudiences: audience,
+        tokenAud: decoded?.aud,
+        tokenAzp: decoded?.azp,
+        tokenIss: decoded?.iss,
+      });
+
+      if (verifyError?.message?.includes('Wrong recipient')) {
+        return res.status(401).json({
+          message: 'Google 토큰 audience가 서버 설정과 일치하지 않습니다.',
+          details: {
+            tokenAud: decoded?.aud,
+            tokenAzp: decoded?.azp,
+            allowedAudiences: audience,
+          },
+        });
+      }
+
+      throw verifyError;
+    }
     const payload = ticket.getPayload();
 
     if (!payload) {
