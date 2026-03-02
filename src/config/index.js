@@ -1,5 +1,14 @@
 require('dotenv').config();
 
+const normalizeGoogleClientIdFromScheme = (scheme) => {
+  if (!scheme || typeof scheme !== 'string') return undefined;
+  const prefix = 'com.googleusercontent.apps.';
+  if (!scheme.startsWith(prefix)) return undefined;
+  const raw = scheme.slice(prefix.length).trim();
+  if (!raw) return undefined;
+  return `${raw}.apps.googleusercontent.com`;
+};
+
 module.exports = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -20,6 +29,7 @@ module.exports = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     redirectUri: process.env.GOOGLE_REDIRECT_URI,
     iosScheme: process.env.GOOGLE_IOS_SCHEME,
+    iosClientId: process.env.GOOGLE_IOS_CLIENT_ID || normalizeGoogleClientIdFromScheme(process.env.GOOGLE_IOS_SCHEME),
   },
   r2: {
     accountId: process.env.R2_ACCOUNT_ID,

@@ -33,9 +33,28 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
-const googleClientId = config.google.clientId
-  ? config.google.clientId.split(',')[0].trim()
-  : undefined;
+const getGoogleAudiences = () => {
+  const audiences = new Set();
+
+  if (config.google.clientId) {
+    config.google.clientId
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .forEach((id) => audiences.add(id));
+  }
+
+  if (config.google.iosClientId) {
+    audiences.add(config.google.iosClientId.trim());
+  }
+
+  return Array.from(audiences);
+};
+
+const googleClientId = (() => {
+  const audiences = getGoogleAudiences();
+  return audiences[0];
+})();
 
 const googleClient = new OAuth2Client(
   googleClientId,
@@ -140,9 +159,7 @@ exports.googleLoginNative = async (req, res, next) => {
     }
 
     // 모든 가능한 클라이언트 ID 검증 (web, iOS, Android 등)
-    const audience = config.google.clientId
-      ? config.google.clientId.split(',').map((id) => id.trim())
-      : undefined;
+    const audience = getGoogleAudiences();
 
     const ticket = await googleClient.verifyIdToken({
       idToken,
@@ -203,9 +220,7 @@ exports.googleLogin = async (req, res, next) => {
       }
     }
 
-    const audience = config.google.clientId
-      ? config.google.clientId.split(',').map((id) => id.trim())
-      : undefined;
+    const audience = getGoogleAudiences();
 
     const ticket = await googleClient.verifyIdToken({
       idToken: resolvedIdToken,
