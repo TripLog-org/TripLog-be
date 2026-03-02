@@ -67,6 +67,37 @@ router.post('/apple', authController.appleLogin);
  *       401:
  *         description: 인증 실패
  */
+/**
+ * @swagger
+ * /api/auth/google/native:
+ *   post:
+ *     summary: iOS Native 구글 로그인
+ *     description: iOS 앱에서 Google Sign-In SDK로 받은 ID 토큰을 검증
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: iOS Google Sign-In SDK에서 받은 ID 토큰
+ *     responses:
+ *       200:
+ *         description: 로그인 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: 인증 실패
+ */
+router.post('/google/native', authController.googleLoginNative);
+
 router.post('/google', authController.googleLogin);
 
 /**

@@ -126,7 +126,56 @@ exports.appleLogin = async (req, res, next) => {
   }
 };
 
-// 구글 로그인
+// iOS Native 구글 로그인 (ID 토큰 검증만)
+exports.googleLoginNative = async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken이 필요합니다.' });
+    }
+
+    if (!config.google.clientId) {
+      return res.status(500).json({ message: 'Google Client ID가 설정되지 않았습니다.' });
+    }
+
+    // 모든 가능한 클라이언트 ID 검증 (web, iOS, Android 등)
+    const audience = config.google.clientId
+      ? config.google.clientId.split(',').map((id) => id.trim())
+      : undefined;
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload) {
+      return res.status(401).json({ message: '유효하지 않은 구글 토큰입니다.' });
+    }
+
+    const { sub: providerId, email, name, picture } = payload;
+
+    const { tokens, user, isNewUser } = await upsertSocialUser({
+      provider: 'google',
+      providerId,
+      email,
+      name,
+      profileImage: picture,
+    });
+
+    res.json({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user,
+      isNewUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 구글 로그인 (웹)
 exports.googleLogin = async (req, res, next) => {
   try {
     const { idToken, authorizationCode } = req.body;
