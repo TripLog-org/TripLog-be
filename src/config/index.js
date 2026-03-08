@@ -23,6 +23,7 @@ module.exports = {
     clientId: process.env.APPLE_CLIENT_ID,
     teamId: process.env.APPLE_TEAM_ID,
     keyId: process.env.APPLE_KEY_ID,
+    privateKey: process.env.APPLE_PRIVATE_KEY,
   },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
