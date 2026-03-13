@@ -1,5 +1,5 @@
 const { Post, User } = require('../models');
-const { uploadImageToR2, deleteImages } = require('../utils/imageUtils');
+const { uploadImageToR2, uploadOriginalToR2, generateAndUploadThumbnail, deleteImages } = require('../utils/imageUtils');
 const { getPresignedUrl, getKeyFromUrl } = require('../utils/r2Storage');
 const multer = require('multer');
 
@@ -24,22 +24,21 @@ const transformPost = (post, userId) => {
 const signImageUrls = async (images, expiresIn = 3600) => {
   if (!Array.isArray(images)) return images;
 
-  const signed = [];
-  for (const img of images) {
+  return Promise.all(images.map(async (img) => {
     const imageKey = getKeyFromUrl(img.url);
     const thumbnailKey = getKeyFromUrl(img.thumbnail || img.url);
 
-    const imageUrl = imageKey ? await getPresignedUrl(imageKey, expiresIn) : img.url;
-    const thumbnailUrl = thumbnailKey ? await getPresignedUrl(thumbnailKey, expiresIn) : (img.thumbnail || img.url);
+    const [imageUrl, thumbnailUrl] = await Promise.all([
+      imageKey ? getPresignedUrl(imageKey, expiresIn) : Promise.resolve(img.url),
+      thumbnailKey ? getPresignedUrl(thumbnailKey, expiresIn) : Promise.resolve(img.thumbnail || img.url),
+    ]);
 
-    signed.push({
+    return {
       ...img,
       url: imageUrl,
       thumbnail: thumbnailUrl,
-    });
-  }
-
-  return signed;
+    };
+  }));
 };
 
 /**
@@ -84,6 +83,7 @@ exports.createPost = async (req, res) => {
 
     // 이미지 처리
     const images = [];
+    let imageResults = [];
     if (req.files && req.files.length > 0) {
       // req.body에서 이미지 메타데이터 파싱
       // imageMeta는 JSON 배열 문자열: [{"latitude": 37.123, "longitude": 127.456, ...}, ...]
@@ -99,55 +99,56 @@ exports.createPost = async (req, res) => {
         }
       }
 
-      for (let i = 0; i < req.files.length; i++) {
-        const file = req.files[i];
+      // 이미지 병렬 업로드 (원본만 빠르게 업로드)
+      imageResults = await Promise.all(
+        req.files.map(async (file, i) => {
+          const { imageKey, uniqueId } = await uploadOriginalToR2(
+            file.buffer,
+            file.originalname,
+            file.mimetype
+          );
 
-        // R2에 이미지 업로드 (원본 + 썸네일)
-        const { imageKey, thumbnailKey } = await uploadImageToR2(
-          file.buffer,
-          file.originalname,
-          file.mimetype
-        );
+          const meta = imageMetadata[i] || {};
 
-        // 해당 이미지의 메타데이터 가져오기
-        const meta = imageMetadata[i] || {};
-
-        const imageObject = {
-          url: imageKey,
-          thumbnail: thumbnailKey || imageKey,
-          order: i,
-        };
-
-        // 이미지별 위치 정보 추가
-        if (meta.latitude && meta.longitude) {
-          imageObject.location = {
-            coordinates: {
-              latitude: parseFloat(meta.latitude),
-              longitude: parseFloat(meta.longitude),
-            },
+          const imageObject = {
+            url: imageKey,
+            thumbnail: imageKey, // 초기값은 원본 (썸네일은 백그라운드 생성)
+            order: i,
           };
-          
-          // 위치 이름과 주소가 있으면 추가
-          if (meta.locationName) {
-            imageObject.location.name = meta.locationName;
+
+          // 이미지별 위치 정보 추가
+          if (meta.latitude && meta.longitude) {
+            imageObject.location = {
+              coordinates: {
+                latitude: parseFloat(meta.latitude),
+                longitude: parseFloat(meta.longitude),
+              },
+            };
+            
+            // 위치 이름과 주소가 있으면 추가
+            if (meta.locationName) {
+              imageObject.location.name = meta.locationName;
+            }
+            if (meta.address) {
+              imageObject.location.address = meta.address;
+            }
           }
-          if (meta.address) {
-            imageObject.location.address = meta.address;
+
+          // 촬영 시간 추가
+          if (meta.capturedAt) {
+            imageObject.capturedAt = new Date(meta.capturedAt);
           }
-        }
 
-        // 촬영 시간 추가
-        if (meta.capturedAt) {
-          imageObject.capturedAt = new Date(meta.capturedAt);
-        }
+          // 이미지 설명 추가
+          if (meta.description) {
+            imageObject.description = meta.description;
+          }
 
-        // 이미지 설명 추가
-        if (meta.description) {
-          imageObject.description = meta.description;
-        }
+          return { imageObject, buffer: file.buffer, uniqueId };
+        })
+      );
 
-        images.push(imageObject);
-      }
+      images.push(...imageResults.map(r => r.imageObject));
     }
 
     // 태그 처리 - 문자열 배열 또는 JSON 문자열 모두 지원
@@ -210,6 +211,21 @@ exports.createPost = async (req, res) => {
       success: true,
       data: responsePost,
     });
+
+    // 백그라운드 썸네일 생성 (응답 후 비동기 처리)
+    if (imageResults.length > 0) {
+      Promise.all(
+        imageResults.map(async ({ buffer, uniqueId }, i) => {
+          const thumbnailKey = await generateAndUploadThumbnail(buffer, uniqueId);
+          if (thumbnailKey) {
+            await Post.updateOne(
+              { _id: post._id, 'images.order': i },
+              { $set: { 'images.$.thumbnail': thumbnailKey } }
+            );
+          }
+        })
+      ).catch(err => console.error('백그라운드 썸네일 생성 오류:', err));
+    }
   } catch (error) {
     // Multer 에러 처리
     if (error instanceof multer.MulterError) {
