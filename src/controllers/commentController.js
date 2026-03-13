@@ -38,7 +38,7 @@ exports.createComment = async (req, res) => {
     });
 
     await comment.save();
-    await comment.populate('author', 'username email profileImage');
+    await comment.populate('author', 'username email profileImage nickname');
 
     res.status(201).json({
       success: true,
@@ -79,7 +79,7 @@ exports.getComments = async (req, res) => {
     };
 
     const comments = await Comment.find(query)
-      .populate('author', 'username email profileImage')
+      .populate('author', 'username email profileImage nickname')
       .sort(sort)
       .limit(limit * 1)
       .skip((page - 1) * limit)
@@ -92,7 +92,7 @@ exports.getComments = async (req, res) => {
           parentComment: comment._id,
           isDeleted: false,
         })
-          .populate('author', 'username email profileImage')
+          .populate('author', 'username email profileImage nickname')
           .sort('createdAt')
           .exec();
 
@@ -158,7 +158,7 @@ exports.updateComment = async (req, res) => {
 
     comment.content = content;
     await comment.save();
-    await comment.populate('author', 'username email profileImage');
+    await comment.populate('author', 'username email profileImage nickname');
 
     res.json({
       success: true,

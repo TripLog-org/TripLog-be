@@ -201,7 +201,7 @@ exports.createPost = async (req, res) => {
 
     const post = new Post(postData);
     await post.save();
-    await post.populate('author', 'username email profileImage');
+    await post.populate('author', 'username email profileImage nickname');
 
     const responsePost = transformPost(post, userId);
     responsePost.images = await signImageUrls(responsePost.images);
@@ -381,7 +381,7 @@ exports.getPostsForMap = async (req, res) => {
 
     const posts = await Post.find(query)
       .select('_id images author createdAt')
-      .populate('author', 'username profileImage')
+      .populate('author', 'username profileImage nickname')
       .limit(limit * 1)
       .sort('-createdAt')
       .exec();
@@ -429,6 +429,7 @@ exports.getPostsForMap = async (req, res) => {
             _id: post.author._id,
             username: post.author.username,
             profileImage: post.author.profileImage,
+            nickname: post.author.nickname,
           },
           createdAt: post.createdAt,
         });
@@ -574,7 +575,7 @@ exports.updatePost = async (req, res) => {
     if (visibility !== undefined) post.visibility = visibility;
 
     await post.save();
-    await post.populate('author', 'username email profileImage');
+    await post.populate('author', 'username email profileImage nickname');
 
     res.json({
       success: true,
