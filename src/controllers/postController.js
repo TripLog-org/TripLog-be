@@ -396,7 +396,7 @@ exports.getPostsForMap = async (req, res) => {
     }
 
     const posts = await Post.find(query)
-      .select('_id images author createdAt')
+      .select('_id images author createdAt bookmarks')
       .populate('author', 'username profileImage nickname')
       .limit(limit * 1)
       .sort('-createdAt')
@@ -425,6 +425,10 @@ exports.getPostsForMap = async (req, res) => {
         const photoUrl = photoUrlKey ? await getPresignedUrl(photoUrlKey) : image.url;
         const thumbnailUrl = thumbnailKey ? await getPresignedUrl(thumbnailKey) : (image.thumbnail || image.url);
 
+        const isBookmarked = userId
+          ? (post.bookmarks || []).some(id => String(id) === String(userId))
+          : false;
+
         photoItems.push({
           postId: post._id,
           photo: {
@@ -447,6 +451,7 @@ exports.getPostsForMap = async (req, res) => {
             profileImage: post.author.profileImage,
             nickname: post.author.nickname,
           },
+          isBookmarked,
           createdAt: post.createdAt,
         });
       }

@@ -254,6 +254,10 @@ router.get('/my', authenticate, postController.getMyPosts);
  *                             type: string
  *                           profileImage:
  *                             type: string
+ *                       isBookmarked:
+ *                         type: boolean
+ *                         description: 로그인 사용자의 북마크 여부 (비로그인 시 false)
+ *                         example: false
  *                       createdAt:
  *                         type: string
  *                         format: date-time
