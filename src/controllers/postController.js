@@ -473,6 +473,134 @@ exports.getPostsForMap = async (req, res) => {
 };
 
 /**
+ * @description 내 게시물 지도용 조회
+ * - 로그인 필수
+ * - 본인이 올린 게시물만 반환
+ * - latitude/longitude/zoomLevel은 선택 (없으면 전체 반환)
+ */
+exports.getMyPostsForMap = async (req, res) => {
+  try {
+    const {
+      latitude,
+      longitude,
+      zoomLevel,
+      tag,
+      limit = 100,
+    } = req.query;
+    const userId = req.user.userId;
+
+    const query = {
+      isPublished: true,
+      author: userId,
+      'images.location.coordinates': { $exists: true },
+    };
+
+    // 태그 필터
+    if (tag) {
+      query.tags = tag.toLowerCase();
+    }
+
+    // 위치 기반 필터링 (선택)
+    if (latitude && longitude && zoomLevel) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const zoom = parseInt(zoomLevel);
+
+      if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
+        const radiusKm = getRadiusFromZoomLevel(zoom);
+
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            {
+              'images.location.coordinates.latitude': {
+                $gte: lat - (radiusKm / 111),
+                $lte: lat + (radiusKm / 111),
+              },
+              'images.location.coordinates.longitude': {
+                $gte: lng - (radiusKm / (111 * Math.cos(lat * Math.PI / 180))),
+                $lte: lng + (radiusKm / (111 * Math.cos(lat * Math.PI / 180))),
+              },
+            },
+          ],
+        });
+      }
+    }
+
+    const posts = await Post.find(query)
+      .select('_id images author createdAt bookmarks')
+      .populate('author', 'username profileImage nickname')
+      .limit(limit * 1)
+      .sort('-createdAt')
+      .exec();
+
+    // 게시물의 각 사진을 개별 항목으로 펼치기
+    const photoItems = [];
+
+    for (const post of posts) {
+      if (!post.author) {
+        continue;
+      }
+
+      const photosWithLocation = post.images.filter(
+        img => img.location && img.location.coordinates &&
+               img.location.coordinates.latitude &&
+               img.location.coordinates.longitude
+      );
+
+      for (const image of photosWithLocation) {
+        const photoUrlKey = getKeyFromUrl(image.url);
+        const thumbnailKey = getKeyFromUrl(image.thumbnail || image.url);
+
+        const photoUrl = photoUrlKey ? await getPresignedUrl(photoUrlKey) : image.url;
+        const thumbnailUrl = thumbnailKey ? await getPresignedUrl(thumbnailKey) : (image.thumbnail || image.url);
+
+        const isBookmarked = (post.bookmarks || []).some(id => String(id) === String(userId));
+
+        photoItems.push({
+          postId: post._id,
+          photo: {
+            url: photoUrl,
+            thumbnail: thumbnailUrl,
+            location: {
+              name: image.location.name,
+              coordinates: {
+                latitude: image.location.coordinates.latitude,
+                longitude: image.location.coordinates.longitude,
+              },
+              address: image.location.address,
+            },
+            capturedAt: image.capturedAt,
+            description: image.description,
+          },
+          author: {
+            _id: post.author._id,
+            username: post.author.username,
+            profileImage: post.author.profileImage,
+            nickname: post.author.nickname,
+          },
+          isBookmarked,
+          createdAt: post.createdAt,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: photoItems,
+      total: photoItems.length,
+    });
+  } catch (error) {
+    console.error('내 게시물 지도용 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '내 게시물 지도용 조회에 실패했습니다.',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * @description 특정 게시물 조회
  */
 exports.getPost = async (req, res) => {

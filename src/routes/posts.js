@@ -272,6 +272,119 @@ router.get('/map', optionalAuth, postController.getPostsForMap);
 
 /**
  * @swagger
+ * /api/posts/my/map:
+ *   get:
+ *     summary: 내 게시물 지도용 조회 (사진 기반)
+ *     description: 로그인한 사용자 본인이 올린 게시물의 각 사진을 개별 항목으로 반환. isBookmarked 포함. latitude/longitude/zoomLevel은 선택 (없으면 전체 반환)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: latitude
+ *         schema:
+ *           type: number
+ *           format: float
+ *         description: 현재 위치 위도 (선택)
+ *         example: 37.5665
+ *       - in: query
+ *         name: longitude
+ *         schema:
+ *           type: number
+ *           format: float
+ *         description: 현재 위치 경도 (선택)
+ *         example: 126.9780
+ *       - in: query
+ *         name: zoomLevel
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 20
+ *         description: 지도 줌 레벨 (선택, 1=전세계 12=5km 20=0.02km)
+ *         example: 12
+ *       - in: query
+ *         name: tag
+ *         schema:
+ *           type: string
+ *         description: 태그 필터 (선택)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: 최대 항목 수
+ *     responses:
+ *       200:
+ *         description: 내 게시물 지도용 조회 성공
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       postId:
+ *                         type: string
+ *                         example: 507f1f77bcf86cd799439011
+ *                       photo:
+ *                         type: object
+ *                         properties:
+ *                           url:
+ *                             type: string
+ *                           thumbnail:
+ *                             type: string
+ *                           location:
+ *                             type: object
+ *                             properties:
+ *                               name:
+ *                                 type: string
+ *                               coordinates:
+ *                                 type: object
+ *                                 properties:
+ *                                   latitude:
+ *                                     type: number
+ *                                   longitude:
+ *                                     type: number
+ *                               address:
+ *                                 type: string
+ *                           capturedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           description:
+ *                             type: string
+ *                       author:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           username:
+ *                             type: string
+ *                           profileImage:
+ *                             type: string
+ *                       isBookmarked:
+ *                         type: boolean
+ *                         description: 본인의 북마크 여부
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 total:
+ *                   type: integer
+ *       401:
+ *         description: 인증 필요
+ *       500:
+ *         description: 서버 오류
+ */
+router.get('/my/map', authenticate, postController.getMyPostsForMap);
+
+/**
+ * @swagger
  * /api/posts/{id}:
  *   get:
  *     summary: 특정 게시물 조회
