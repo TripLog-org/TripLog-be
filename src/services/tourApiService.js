@@ -9,10 +9,12 @@ console.log('[Tour API Service] API Key loaded:', TOUR_API_KEY ? 'YES (decoded)'
 /**
  * 공공 API - 지역기반 관광정보 조회
  * @param {number} areaCode - 지역코드 (1-39)
- * @param {number} sigunguCode - 시군구코드 (선택사항)
- * @param {number} pageNum - 페이지 번호 (기본값: 1)
- * @param {number} numOfRows - 한 페이지에 출력되는 데이터 개수 (기본값: 10, 최대: 100)
- * @param {string} contentTypeId - 관광타입 코드 (예: 12=관광지, 14=문화시설, 15=축제공연행사, 25=여행코스, 28=레포츠, 32=숙박, 38=쇼핑)
+ * @param {Object} options - 추가 옵션
+ * @param {number} options.sigunguCode - 시군구코드 (선택사항)
+ * @param {number} options.pageNum - 페이지 번호 (기본값: 1)
+ * @param {number} options.numOfRows - 한 페이지에 출력되는 데이터 개수 (기본값: 20, 최대: 100)
+ * @param {string} options.contentTypeId - 관광타입 코드 (예: 12=관광지, 14=문화시설, 15=축제공연행사, 25=여행코스, 28=레포츠, 32=숙박, 38=쇼핑)
+ * @param {string} options.arrange - 정렬 기준 (A=제목순, C=수정일순, D=등록일순, E=수정일역순)
  * @returns {Promise<Object>} API 응답 데이터
  */
 exports.getAreaBasedList = async (areaCode, options = {}) => {
@@ -38,6 +40,10 @@ exports.getAreaBasedList = async (areaCode, options = {}) => {
       params.contentTypeId = options.contentTypeId;
     }
 
+    if (options.arrange) {
+      params.arrange = options.arrange;
+    }
+
     console.log('[Tour API] Requesting areaBasedList with params:', params);
     
     const response = await axios.get(
@@ -61,6 +67,7 @@ exports.getAreaBasedList = async (areaCode, options = {}) => {
  * 공공 API - 키워드 검색
  * @param {string} keyword - 검색 키워드
  * @param {Object} options - 추가 옵션
+ * @param {string} options.arrange - 정렬 기준 (A=제목순, C=수정일순, D=등록일순, E=수정일역순)
  * @returns {Promise<Object>} API 응답 데이터
  */
 exports.searchKeyword = async (keyword, options = {}) => {
@@ -77,6 +84,10 @@ exports.searchKeyword = async (keyword, options = {}) => {
 
     if (options.contentTypeId) {
       params.contentTypeId = options.contentTypeId;
+    }
+
+    if (options.arrange) {
+      params.arrange = options.arrange;
     }
 
     const response = await axios.get(

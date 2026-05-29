@@ -22,12 +22,28 @@ const AREA_CODE_MAP = {
   '제주': 39,
 };
 
+const VALID_ARRANGE_CODES = ['A', 'C', 'D', 'E'];
+
+function getDbSortFromArrange(arrange) {
+  switch (arrange) {
+    case 'A': return { title: 1 };        // 제목순 (오름차순)
+    case 'C': return { updatedAt: -1 };   // 수정일순 (최신순)
+    case 'D': return { createdAt: -1 };   // 등록일순 (최신순)
+    case 'E': return { updatedAt: 1 };    // 수정일역순 (오래된 순)
+    default:  return { createdAt: -1 };   // 기본값: 등록일 최신순
+  }
+}
+
 // 추천 여행 목록 조회 (공공 API + DB 통합)
 exports.getRecommendations = async (req, res, next) => {
   try {
-    const { category, region, usePublicApi, page = '1', pageSize = '20' } = req.query;
+    const { category, region, usePublicApi, page = '1', pageSize = '20', arrange } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
     const numOfRows = Math.max(1, Math.min(100, parseInt(pageSize) || 20)); // 최대 100
+
+    const arrangeCode = arrange && VALID_ARRANGE_CODES.includes(arrange.toUpperCase())
+      ? arrange.toUpperCase()
+      : undefined;
 
     // 공공 API 사용 여부 결정
     const shouldUsePublicApi = usePublicApi === 'true';
@@ -42,6 +58,7 @@ exports.getRecommendations = async (req, res, next) => {
       const apiResponse = await tourApiService.getAreaBasedList(areaCode, {
         numOfRows,
         pageNum,
+        arrange: arrangeCode,
       });
 
       if (!apiResponse.response?.body?.items?.item) {
@@ -92,6 +109,7 @@ exports.getRecommendations = async (req, res, next) => {
         source: 'public_api',
         region,
         category: category || null,
+        arrange: arrangeCode || null,
         pagination: {
           page: pageNum,
           pageSize: numOfRows,
@@ -112,7 +130,7 @@ exports.getRecommendations = async (req, res, next) => {
     const skip = (pageNum - 1) * numOfRows;
     const total = await Recommendation.countDocuments(filter);
     const recommendations = await Recommendation.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(getDbSortFromArrange(arrangeCode))
       .skip(skip)
       .limit(numOfRows);
 
@@ -121,6 +139,7 @@ exports.getRecommendations = async (req, res, next) => {
     res.json({
       source: 'database',
       category: category || null,
+      arrange: arrangeCode || null,
       pagination: {
         page: pageNum,
         pageSize: numOfRows,
@@ -199,9 +218,13 @@ exports.getRecommendation = async (req, res, next) => {
 // 키워드로 관광정보 검색 (공공 API)
 exports.searchRecommendations = async (req, res, next) => {
   try {
-    const { keyword, page = '1', pageSize = '20' } = req.query;
+    const { keyword, page = '1', pageSize = '20', arrange } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
     const numOfRows = Math.max(1, Math.min(100, parseInt(pageSize) || 20));
+
+    const arrangeCode = arrange && VALID_ARRANGE_CODES.includes(arrange.toUpperCase())
+      ? arrange.toUpperCase()
+      : undefined;
 
     if (!keyword || keyword.trim().length === 0) {
       return res
@@ -212,11 +235,13 @@ exports.searchRecommendations = async (req, res, next) => {
     const apiResponse = await tourApiService.searchKeyword(keyword, {
       numOfRows,
       pageNum,
+      arrange: arrangeCode,
     });
 
     if (!apiResponse.response?.body?.items?.item) {
       return res.json({
         keyword,
+        arrange: arrangeCode || null,
         pagination: {
           page: pageNum,
           pageSize: numOfRows,
@@ -248,6 +273,7 @@ exports.searchRecommendations = async (req, res, next) => {
 
     res.json({
       keyword,
+      arrange: arrangeCode || null,
       pagination: {
         page: pageNum,
         pageSize: numOfRows,

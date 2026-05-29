@@ -61,6 +61,21 @@ const recommendationController = require('../controllers/recommendationControlle
  *             - "false"
  *         description: "한국관광공사 공공 API 사용 여부"
  *       - in: query
+ *         name: arrange
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - "A"
+ *             - "C"
+ *             - "D"
+ *             - "E"
+ *         description: |
+ *           정렬 기준 (기본값: D)
+ *           - A: 제목순
+ *           - C: 수정일순 (최신순)
+ *           - D: 등록일순 (최신순)
+ *           - E: 수정일역순 (오래된 순)
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -90,6 +105,10 @@ const recommendationController = require('../controllers/recommendationControlle
  *                   type: string
  *                 category:
  *                   type: string
+ *                 arrange:
+ *                   type: string
+ *                   example: "A"
+ *                   description: "적용된 정렬 기준 (null이면 기본값 적용)"
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -130,6 +149,21 @@ router.get('/', recommendationController.getRecommendations);
  *           type: string
  *         description: "검색 키워드 (예: 서울, 제주 관광지)"
  *       - in: query
+ *         name: arrange
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - "A"
+ *             - "C"
+ *             - "D"
+ *             - "E"
+ *         description: |
+ *           정렬 기준 (기본값: D)
+ *           - A: 제목순
+ *           - C: 수정일순 (최신순)
+ *           - D: 등록일순 (최신순)
+ *           - E: 수정일역순 (오래된 순)
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -154,6 +188,10 @@ router.get('/', recommendationController.getRecommendations);
  *               properties:
  *                 keyword:
  *                   type: string
+ *                 arrange:
+ *                   type: string
+ *                   example: "A"
+ *                   description: "적용된 정렬 기준 (null이면 기본값 적용)"
  *                 pagination:
  *                   type: object
  *                   properties:
