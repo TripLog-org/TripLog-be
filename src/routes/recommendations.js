@@ -8,27 +8,11 @@ const recommendationController = require('../controllers/recommendationControlle
  *   get:
  *     summary: 추천 여행 목록
  *     description: |
- *       추천 여행지 목록 조회 (Public)
- *       - usePublicApi=true 시 한국관광공사 공공 API 사용
- *       - usePublicApi가 없으면 DB의 추천 데이터 반환
+ *       한국관광공사 공공 API 기반 관광정보 목록 조회 (Public)
+ *       - region 미입력 시 전국 데이터 반환
+ *       - category 입력 시 해당 관광타입만 필터링하여 조회
  *     tags: [Recommendations]
  *     parameters:
- *       - in: query
- *         name: category
- *         schema:
- *           type: string
- *           enum:
- *             - "관광지"
- *             - "문화시설"
- *             - "축제공연행사"
- *             - "여행코스"
- *             - "레포츠"
- *             - "숙박"
- *             - "쇼핑"
- *             - "산"
- *             - "바다"
- *             - "도시"
- *         description: "카테고리 필터 (공공 API: 관광지,문화시설 등 / DB: 산,바다,도시)"
  *       - in: query
  *         name: region
  *         schema:
@@ -51,15 +35,20 @@ const recommendationController = require('../controllers/recommendationControlle
  *             - "경북"
  *             - "경남"
  *             - "제주"
- *         description: "지역 (공공 API 사용 시 필수)"
+ *         description: "지역 필터 (미입력 시 전국 조회)"
  *       - in: query
- *         name: usePublicApi
+ *         name: category
  *         schema:
  *           type: string
  *           enum:
- *             - "true"
- *             - "false"
- *         description: "한국관광공사 공공 API 사용 여부"
+ *             - "관광지"
+ *             - "문화시설"
+ *             - "축제공연행사"
+ *             - "여행코스"
+ *             - "레포츠"
+ *             - "숙박"
+ *             - "쇼핑"
+ *         description: "관광타입 필터"
  *       - in: query
  *         name: arrange
  *         schema:
@@ -68,13 +57,17 @@ const recommendationController = require('../controllers/recommendationControlle
  *             - "A"
  *             - "C"
  *             - "D"
- *             - "E"
+ *             - "O"
+ *             - "Q"
+ *             - "R"
  *         description: |
- *           정렬 기준 (기본값: D)
+ *           정렬 기준 (기본값: C)
  *           - A: 제목순
- *           - C: 수정일순 (최신순)
- *           - D: 등록일순 (최신순)
- *           - E: 수정일역순 (오래된 순)
+ *           - C: 수정일순 (기본값)
+ *           - D: 등록일순
+ *           - O: 제목순 (대표이미지 있는 항목만)
+ *           - Q: 수정일순 (대표이미지 있는 항목만)
+ *           - R: 등록일순 (대표이미지 있는 항목만)
  *       - in: query
  *         name: page
  *         schema:
@@ -98,17 +91,19 @@ const recommendationController = require('../controllers/recommendationControlle
  *             schema:
  *               type: object
  *               properties:
- *                 source:
- *                   type: string
- *                   example: "public_api 또는 database"
  *                 region:
  *                   type: string
+ *                   nullable: true
+ *                   example: "제주"
  *                 category:
  *                   type: string
+ *                   nullable: true
+ *                   example: "관광지"
  *                 arrange:
  *                   type: string
- *                   example: "A"
- *                   description: "적용된 정렬 기준 (null이면 기본값 적용)"
+ *                   nullable: true
+ *                   example: "Q"
+ *                   description: "적용된 정렬 기준 (null이면 공공 API 기본값 적용)"
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -125,12 +120,30 @@ const recommendationController = require('../controllers/recommendationControlle
  *                       type: integer
  *                       description: "전체 페이지 수"
  *                 count:
- *                   type: number
+ *                   type: integer
  *                   description: "현재 페이지의 항목 수"
  *                 data:
  *                   type: array
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "2850913"
+ *                       title:
+ *                         type: string
+ *                       region:
+ *                         type: string
+ *                       category:
+ *                         type: string
+ *                       coverImage:
+ *                         type: string
+ *                       address:
+ *                         type: string
+ *                       telephone:
+ *                         type: string
+ *       400:
+ *         description: 지원하지 않는 지역
  */
 router.get('/', recommendationController.getRecommendations);
 
@@ -156,13 +169,17 @@ router.get('/', recommendationController.getRecommendations);
  *             - "A"
  *             - "C"
  *             - "D"
- *             - "E"
+ *             - "O"
+ *             - "Q"
+ *             - "R"
  *         description: |
- *           정렬 기준 (기본값: D)
+ *           정렬 기준 (기본값: C)
  *           - A: 제목순
- *           - C: 수정일순 (최신순)
- *           - D: 등록일순 (최신순)
- *           - E: 수정일역순 (오래된 순)
+ *           - C: 수정일순 (기본값)
+ *           - D: 등록일순
+ *           - O: 제목순 (대표이미지 있는 항목만)
+ *           - Q: 수정일순 (대표이미지 있는 항목만)
+ *           - R: 등록일순 (대표이미지 있는 항목만)
  *       - in: query
  *         name: page
  *         schema:
@@ -190,8 +207,9 @@ router.get('/', recommendationController.getRecommendations);
  *                   type: string
  *                 arrange:
  *                   type: string
+ *                   nullable: true
  *                   example: "A"
- *                   description: "적용된 정렬 기준 (null이면 기본값 적용)"
+ *                   description: "적용된 정렬 기준 (null이면 공공 API 기본값 적용)"
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -204,9 +222,26 @@ router.get('/', recommendationController.getRecommendations);
  *                     totalPages:
  *                       type: integer
  *                 count:
- *                   type: number
+ *                   type: integer
  *                 data:
  *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       category:
+ *                         type: string
+ *                       region:
+ *                         type: string
+ *                       coverImage:
+ *                         type: string
+ *                       address:
+ *                         type: string
+ *                       telephone:
+ *                         type: string
  *       400:
  *         description: 키워드 입력 필요
  */
@@ -217,10 +252,7 @@ router.get('/search', recommendationController.searchRecommendations);
  * /api/recommendations/{id}:
  *   get:
  *     summary: 추천 여행 상세
- *     description: |
- *       추천 여행 상세 정보 조회 (Public)
- *       - usePublicApi=true 시 공공 API에서 상세 정보 조회
- *       - 없으면 DB 추천 데이터 반환
+ *     description: 한국관광공사 공공 API 기반 관광정보 상세 조회 (Public)
  *     tags: [Recommendations]
  *     parameters:
  *       - in: path
@@ -228,21 +260,42 @@ router.get('/search', recommendationController.searchRecommendations);
  *         required: true
  *         schema:
  *           type: string
- *         description: "추천 여행 ID 또는 공공 API contentId"
- *       - in: query
- *         name: usePublicApi
- *         schema:
- *           type: boolean
- *         description: "한국관광공사 공공 API 사용 여부"
+ *         description: "공공 API contentId (예: 2850913)"
  *     responses:
  *       200:
- *         description: 추천 여행 상세
+ *         description: 관광정보 상세
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 title:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 address:
+ *                   type: string
+ *                 telephone:
+ *                   type: string
+ *                 mapx:
+ *                   type: string
+ *                 mapy:
+ *                   type: string
+ *                 coverImage:
+ *                   type: string
+ *                 images:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       url:
+ *                         type: string
+ *                       thumbnail:
+ *                         type: string
  *       404:
- *         description: 추천 여행 없음
+ *         description: 관광정보 없음
  */
 router.get('/:id', recommendationController.getRecommendation);
 
